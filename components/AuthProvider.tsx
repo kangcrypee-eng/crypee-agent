@@ -23,10 +23,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const load = async () => {
     if (!supabase) { setLoading(false); return }
+    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('Auth timeout')), 5000))
     try {
-      const { data: { user: au } } = await supabase.auth.getUser()
+      const { data: { user: au } } = await Promise.race([supabase.auth.getUser(), timeout])
       if (!au) { setUser(null); setLoading(false); return }
-      const { data } = await supabase.from('profiles').select('*').eq('id', au.id).single()
+      const { data } = await Promise.race([supabase.from('profiles').select('*').eq('id', au.id).single(), timeout])
       if (data) { setUser(data as Profile); setCredits(data.credits || 0) }
     } catch (e) { console.error('Auth:', e) }
     setLoading(false)

@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider'
 export default function Nav() {
   const path = usePathname()
   const router = useRouter()
-  const { user, isAdmin, credits, loading, signOut } = useAuth()
+  const { user, isAdmin, credits, signOut } = useAuth()
 
   const logout = async () => { await signOut(); router.push('/'); router.refresh() }
 
@@ -22,7 +22,7 @@ export default function Nav() {
           {isAdmin && <NL href="/admin" cur={path}>어드민</NL>}
         </div>
         <div className="flex-1" />
-        {loading ? null : user ? (
+        {user ? (
           <div className="flex items-center gap-2">
             <Link href="/mypage" className="flex items-center gap-1.5 px-3 py-1 bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.2)] rounded-2xl text-xs font-semibold text-[#00D4AA]">◆ {credits}</Link>
             <Link href="/profile" className="w-[30px] h-[30px] rounded-full bg-[#232328] border border-white/10 flex items-center justify-center text-[11px] font-bold text-[#A1A1AA]">
