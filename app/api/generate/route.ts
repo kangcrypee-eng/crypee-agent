@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+export const maxDuration = 60
+
 export async function POST(request: NextRequest) {
   const start = Date.now()
   try {
@@ -16,17 +18,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, result: `[시뮬레이션 모드]\n\nAPI 키가 설정되지 않았습니다.\n모듈: ${moduleId}\n모델: ${aiModel}\n\n.env.local에 ANTHROPIC_API_KEY를 추가하면 실제 AI 생성이 작동합니다.\n\n--- 전달된 프롬프트 ---\n${fullPrompt.substring(0, 500)}...`, usage: { input_tokens: 0, output_tokens: 0, model: aiModel, generation_time_ms: Date.now()-start } })
     }
 
+    const model = aiModel || 'claude-sonnet-4-5-20250929'
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: aiModel || 'claude-sonnet-4-5-20250929', max_tokens: maxTokens || 4096, temperature: temperature ?? 0.3, system: systemPrompt || '', messages: [{ role: 'user', content: fullPrompt }] }),
+      body: JSON.stringify({ model, max_tokens: maxTokens || 4096, temperature: temperature ?? 0.3, system: systemPrompt || '', messages: [{ role: 'user', content: fullPrompt }] }),
     })
+
     const data = await res.json()
-    if (data.error) throw new Error(data.error.message || 'API error')
+
+    if (!res.ok || data.error) {
+      const errMsg = data.error?.message || `API ${res.status}: ${res.statusText}`
+      console.error('Anthropic API error:', { status: res.status, error: data.error, model, moduleId })
+      return NextResponse.json({ success: false, error: errMsg }, { status: 502 })
+    }
+
     const result = (data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
-    return NextResponse.json({ success: true, result, usage: { input_tokens: data.usage?.input_tokens || 0, output_tokens: data.usage?.output_tokens || 0, model: aiModel, generation_time_ms: Date.now() - start } })
+    return NextResponse.json({ success: true, result, usage: { input_tokens: data.usage?.input_tokens || 0, output_tokens: data.usage?.output_tokens || 0, model, generation_time_ms: Date.now() - start } })
   } catch (error: any) {
     console.error('Generate error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message || '생성 중 오류가 발생했습니다' }, { status: 500 })
   }
 }

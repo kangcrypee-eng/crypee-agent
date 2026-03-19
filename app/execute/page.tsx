@@ -27,6 +27,7 @@ function Exec() {
     try{
       const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:m.user_prompt_template,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:pd,additionalData:fd})})
       const result=await res.json()
+      if(!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));setGen(false);return}
       if(result.success&&user){
         await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:{...pd,...fd},output_text:result.result,output_format:m.default_format||'pdf',credits_used:m.credit_cost,input_tokens:result.usage?.input_tokens,output_tokens:result.usage?.output_tokens,ai_model:m.ai_model,generation_time_ms:result.usage?.generation_time_ms})
         const nc=credits-m.credit_cost;await supabase.from('profiles').update({credits:nc}).eq('id',user.id);setCredits(nc)
