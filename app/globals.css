@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body{background:#09090B;color:#F4F4F5;-webkit-font-smoothing:antialiased;font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#232328;border-radius:2px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#00D4AA!important;box-shadow:0 0 0 2px rgba(0,212,170,0.1)}
+.inp{width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:7px;font-size:13px;font-family:inherit;background:#111114;color:#F4F4F5}
+.inp::placeholder{color:#3a3a42}
+.animate-in{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:32px;height:32px;border:2.5px solid #1F1F23;border-top-color:#00D4AA;border-radius:50%;animation:spin .6s linear infinite}
