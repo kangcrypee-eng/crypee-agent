@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { MODEL_PRICING, ModelId, estimateModulePricing } from '@/lib/pricing'
 import { categories } from '@/lib/modules'
 
+const CATEGORY_ICONS: Record<string,string> = {'사업계획서':'📋','제안서/견적':'📑','계약/법무':'📝','마케팅':'📢','운영/관리':'⚙️','리서치/분석':'🔍','재무/회계':'💰','커뮤니케이션':'💬','채용/HR':'👔','전략/성장':'🚀'}
 const tones = ['비즈니스 경어', '격식체', '반말/친근', '학술적', '법률']
 const languages = ['한국어', '영어', '일본어']
 const allFormats = ['pdf', 'docx', 'xlsx', 'hwp', 'txt', 'html']
@@ -187,7 +188,7 @@ function UploadContent() {
         </Row>
         <Row>
           <Field label="카테고리" width="w-48">
-            <select value={category} onChange={e => setCategory(e.target.value)} className="inp">
+            <select value={category} onChange={e => {setCategory(e.target.value);if(!editId)setIcon(CATEGORY_ICONS[e.target.value]||'📄')}} className="inp">
               {categories.filter(c => c !== '전체').map(c => <option key={c}>{c}</option>)}
             </select>
           </Field>
