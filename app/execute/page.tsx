@@ -8,19 +8,66 @@ const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'�
 const MC:Record<string,string>={oneclick:'bg-[rgba(0,212,170,0.1)] text-[#00D4AA] border-[rgba(0,212,170,0.2)]',form:'bg-[rgba(91,141,239,0.1)] text-[#5B8DEF] border-[rgba(91,141,239,0.2)]',chat:'bg-[rgba(155,141,255,0.1)] text-[#9B8DFF] border-[rgba(155,141,255,0.2)]'}
 const MB:Record<string,string>={oneclick:'rgba(0,212,170,0.1)',form:'rgba(91,141,239,0.1)',chat:'rgba(155,141,255,0.1)'}
 
-function parseTemplateFields(template:string):Array<{key:string;label:string;type:string;placeholder:string;required:boolean}> {
-  const blanks:Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>=[]
+// 프로필에서 자동 채워지는 필드
+const PROFILE_FIELDS = new Set(['business_name','representative','business_number','business_type','sector','item','service_desc','target_customer','track_record','address','phone','email'])
+
+// {{변수명}}을 한국어 라벨로 변환
+const VAR_LABELS:Record<string,string>={
+  program_name:'지원사업명',idea_detail:'사업 아이디어 상세',budget:'예산 (만원)',duration:'사업 기간',team:'팀 구성',
+  investment_amount:'투자 유치 목표 금액',current_stage:'현재 사업 단계',key_metrics:'핵심 지표 (트랙션)',
+  location:'예상 위치/상권',investment:'초기 투자 예산 (만원)',target_revenue:'목표 월매출 (만원)',
+  client:'클라이언트/프로젝트명',scope:'프로젝트 범위',
+  keywords:'타겟 키워드 (쉼표 구분)',tone_style:'글 톤',concept:'계정 컨셉/톤',frequency:'포스팅 빈도',
+  employment_type:'고용 형태',position:'직위/직무',salary:'급여',
+  contract_amount:'계약 금액',contract_period:'계약 기간',work_description:'업무 내용',
+  counterparty_name:'상대방 상호',counterparty_representative:'상대방 대표자',counterparty_address:'상대방 주소',
+  counterparty_business_number:'상대방 사업자등록번호',
+  nda_period:'비밀유지 기간',penalty_amount:'위약벌 금액',
+  service_url:'서비스 URL',
+}
+
+// {{변수}}에서 입력 타입 추론
+function inferType(key:string):{type:string;placeholder:string}{
+  if(key.includes('amount')||key.includes('budget')||key.includes('investment')||key.includes('revenue')||key.includes('salary')||key.includes('penalty'))return{type:'text',placeholder:'예: 500만원, 시급 12,000원'}
+  if(key.includes('detail')||key.includes('scope')||key.includes('description')||key.includes('idea'))return{type:'textarea',placeholder:'자유롭게 입력해주세요'}
+  if(key.includes('period')||key.includes('duration'))return{type:'text',placeholder:'예: 3개월, 1년'}
+  return{type:'text',placeholder:''}
+}
+
+// user_prompt_template에서 프로필에 없는 {{변수}} 파싱
+function parseNonProfileVars(template:string):Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>{
+  const fields:Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>=[]
+  const seen=new Set<string>()
+  const regex=/\{\{(\w+)\}\}/g
+  let match
+  while((match=regex.exec(template))!==null){
+    const key=match[1]
+    if(!PROFILE_FIELDS.has(key)&&!seen.has(key)){
+      seen.add(key)
+      const{type,placeholder}=inferType(key)
+      fields.push({key,label:VAR_LABELS[key]||key.replace(/_/g,' '),type,placeholder,required:false})
+    }
+  }
+  return fields
+}
+
+// system_prompt에서 [________________] 빈칸 파싱 (앞의 라벨 추출)
+function parseBlankFields(text:string):Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>{
+  const fields:Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>=[]
   const seen=new Set<string>()
   const regex=/\[_{4,}\]/g
-  let match; let idx=0
-  while((match=regex.exec(template))!==null){
-    const before=template.substring(Math.max(0,match.index-80),match.index)
+  let match;let idx=0
+  while((match=regex.exec(text))!==null){
+    const before=text.substring(Math.max(0,match.index-100),match.index)
     const labelMatch=before.match(/(?:^|\n)\s*[-·•]?\s*(.+?)[:：]\s*$/)
     const label=labelMatch?labelMatch[1].trim():`입력 항목 ${idx+1}`
-    const key=`blank_${idx}`
-    if(!seen.has(label)){seen.add(label);blanks.push({key,label,type:'text',placeholder:label+' 입력',required:false});idx++}
+    if(!seen.has(label)){
+      seen.add(label)
+      fields.push({key:`blank_${idx}`,label,type:'text',placeholder:label+' 입력',required:false})
+      idx++
+    }
   }
-  return blanks
+  return fields
 }
 
 function Exec() {
@@ -29,18 +76,49 @@ function Exec() {
   const[ld,setLd]=useState(true);const[gen,setGen]=useState(false);const[prog,setProg]=useState(0)
   const[msgs,setMsgs]=useState<{type:string;text:string}[]>([]);const[ci,setCi]=useState('')
   const[cs,setCs]=useState(0);const[fd,setFd]=useState<Record<string,string>>({})
-  const[templateFields,setTemplateFields]=useState<Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>>([])
-  const[showForm,setShowForm]=useState(false)
+  const[autoFields,setAutoFields]=useState<Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>>([])
+  const[profileFields,setProfileFields]=useState<Array<{key:string;label:string;value:string}>>([])
+  const[showProfileEdit,setShowProfileEdit]=useState(false)
 
   useEffect(()=>{if(id)supabase.from('modules').select('*').eq('id',id).single().then(({data})=>{if(data){
     setM(data);setMode(data.mode)
     if(data.mode==='chat')initC(data)
-    if(data.output_mode==='template'&&data.mode==='oneclick'){
-      const fields=data.additional_inputs||[]
-      if(fields.length>0){setTemplateFields(fields);setShowForm(true)}
-      else{const parsed=parseTemplateFields(data.system_prompt||'');if(parsed.length>0){setTemplateFields(parsed);setShowForm(true)}}
+
+    // (A) user_prompt_template에서 비프로필 {{변수}} 파싱
+    const templateVars=parseNonProfileVars(data.user_prompt_template||'')
+
+    // (B) system_prompt에서 [________________] 빈칸 파싱 (template 모드만)
+    const blankVars=data.output_mode==='template'?parseBlankFields(data.system_prompt||''):[]
+
+    // additional_inputs가 있으면 그것을 우선 사용, 없으면 자동 파싱 결과 사용
+    const explicitFields=data.additional_inputs||[]
+    const explicitKeys=new Set(explicitFields.map((f:any)=>f.key))
+
+    // 자동 파싱 결과 중 explicit에 없는 것만 추가
+    const extraVars=templateVars.filter(f=>!explicitKeys.has(f.key))
+    const extraBlanks=blankVars.filter(f=>!explicitKeys.has(f.key))
+
+    const allAutoFields=[...explicitFields,...extraVars,...extraBlanks]
+    setAutoFields(allAutoFields)
+
+    // (C) 프로필 필드 중 이 모듈의 user_prompt_template에서 사용되는 것만 추출
+    const usedProfileVars:Array<{key:string;label:string;value:string}>=[]
+    const profileLabels:Record<string,string>={business_name:'상호',representative:'대표자',business_number:'사업자등록번호',business_type:'사업자 유형',sector:'업종',item:'업태',service_desc:'서비스 설명',target_customer:'타겟 고객',track_record:'주요 실적',address:'주소',phone:'연락처',email:'이메일'}
+    const tpl=data.user_prompt_template||''
+    for(const k of Array.from(PROFILE_FIELDS)){
+      if(tpl.includes(`{{${k}}}`)){
+        usedProfileVars.push({key:k,label:profileLabels[k]||k,value:''})
+      }
     }
+    setProfileFields(usedProfileVars)
   };setLd(false)})},[id])
+
+  // 프로필 데이터가 로드되면 프로필 필드 값 채우기
+  useEffect(()=>{
+    if(user&&profileFields.length>0){
+      setProfileFields(prev=>prev.map(f=>({...f,value:(user as any)[f.key]||''})))
+    }
+  },[user,profileFields.length])
 
   const initC=(mod:any)=>{const q=mod.chat_questions||[];setCs(0);setMsgs([{type:'ai',text:mod.name+'을(를) 작성합니다.'},...(q.length?[{type:'ai',text:q[0].question}]:[])])}
   const sendC=()=>{if(!ci.trim()||!m)return;const t=ci.trim();setMsgs(p=>[...p,{type:'user',text:t}]);setCi('');const q=m.chat_questions||[];const ns=cs+1;if(q[cs])setFd(p=>({...p,[q[cs].field]:t}));setCs(ns);setTimeout(()=>{if(ns<q.length)setMsgs(p=>[...p,{type:'ai',text:q[ns].question}]);else{setMsgs(p=>[...p,{type:'ai',text:'정보 수집 완료. 생성합니다.'}]);setTimeout(generate,800)}},500)}
@@ -48,8 +126,13 @@ function Exec() {
   const generate=async()=>{
     if(!m)return;if(credits<m.credit_cost){alert('크레딧 부족');return}
     setGen(true);for(let i=0;i<4;i++){setProg((i+1)*25);await new Promise(r=>setTimeout(r,700))}
+
+    // 프로필 데이터: 수정된 값 우선 사용
     const pd:Record<string,string>={}
-    if(user){for(const k of['business_name','representative','business_number','business_type','sector','item','service_desc','target_customer','track_record','address','phone','email'])pd[k]=(user as any)[k]||''}
+    if(user){for(const k of Array.from(PROFILE_FIELDS))pd[k]=(user as any)[k]||''}
+    // 사용자가 프로필 필드를 수정했으면 그 값으로 덮어쓰기
+    for(const pf of profileFields){if(pf.value)pd[pf.key]=pf.value}
+
     try{
       const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:m.user_prompt_template,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:pd,additionalData:fd})})
       const result=await res.json()
@@ -66,7 +149,10 @@ function Exec() {
 
   if(ld)return<div className="pt-20 text-center text-[#63636E]">로딩 중...</div>
   if(!m)return<div className="pt-20 text-center text-[#63636E]">모듈을 찾을 수 없습니다</div>
-  const fields=m.additional_inputs||[]
+
+  const hasAutoFields=autoFields.length>0
+  const isChat=mode==='chat'
+  const showInputForm=!isChat&&hasAutoFields
 
   const renderFormFields=(flds:any[])=>flds.map((f:any)=><div key={f.key} className="mb-3.5"><label className="block text-[11.5px] font-medium text-[#A1A1AA] mb-1.5">{f.label}{f.required&&<span className="text-[#EF5B5B]"> *</span>}</label>
     {f.type==='textarea'?<textarea value={fd[f.key]||''} onChange={e=>setFd({...fd,[f.key]:e.target.value})} placeholder={f.placeholder} className="inp min-h-[80px]"/>
@@ -81,26 +167,39 @@ function Exec() {
 
       {gen?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-10 text-center"><div className="spinner mx-auto mb-3.5"/><p className="text-[13.5px] font-medium">AI 에이전트 실행 중...</p><div className="mt-3.5 bg-[#18181B] rounded h-[3px] max-w-[280px] mx-auto overflow-hidden"><div className="h-full bg-[#00D4AA] rounded transition-all duration-500" style={{width:prog+'%'}}/></div></div>
 
-      :mode==='oneclick'&&!showForm?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-9 text-center"><p className="text-[13.5px] text-[#A1A1AA] mb-4">사업 정보 기반으로 즉시 실행합니다.</p><button onClick={generate} className="px-6 py-3 bg-[#00D4AA] text-[#09090B] font-semibold text-sm rounded-lg">⚡ 바로 실행</button><p className="text-[11px] text-[#63636E] mt-2.5">◆{m.credit_cost} 크레딧</p></div>
+      :isChat?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] overflow-hidden"><div className="flex flex-col h-[400px]">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">{msgs.map((msg,i)=><div key={i} className={`max-w-[82%] px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed ${msg.type==='ai'?'bg-[#1C1C20] text-[#A1A1AA] rounded-bl-sm self-start':'bg-[#00D4AA] text-[#09090B] font-medium rounded-br-sm self-end'}`}>{msg.text}</div>)}</div>
+        <div className="p-2.5 border-t border-white/[.06] flex gap-1.5 bg-[#141417]"><input value={ci} onChange={e=>setCi(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendC()} placeholder="답변 입력..." className="flex-1 px-3 py-2 border border-white/10 rounded-[5px] text-[13px] bg-[#111114] text-white placeholder:text-[#3a3a42]"/><button onClick={sendC} className="px-3 py-2 bg-[#00D4AA] text-[#09090B] font-semibold text-[12px] rounded-md">전송</button></div>
+      </div></div>
 
-      :mode==='oneclick'&&showForm?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
-        <p className="text-[12px] text-[#63636E] mb-3">📋 추가 정보를 입력하면 더 정확한 결과를 생성합니다. (선택)</p>
-        {renderFormFields(templateFields)}
-        <div className="flex justify-between items-center mt-2">
-          <p className="text-[11px] text-[#63636E]">빈칸은 AI가 자동으로 채웁니다</p>
-          <button onClick={generate} className="px-4 py-2 bg-[#00D4AA] text-[#09090B] font-semibold text-[12.5px] rounded-md">⚡ 실행 · ◆{m.credit_cost}</button>
+      :showInputForm?<div className="space-y-3">
+        {/* 사용자 입력 필드 (AI가 모르는 정보) */}
+        <div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
+          <p className="text-[13px] font-semibold text-white mb-1">입력 정보</p>
+          <p className="text-[11px] text-[#63636E] mb-4">아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
+          {renderFormFields(autoFields)}
+        </div>
+
+        {/* 프로필 정보 (자동 채움, 수정 가능) */}
+        {profileFields.length>0&&<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div><p className="text-[13px] font-semibold text-white">내 사업자 정보</p><p className="text-[11px] text-[#63636E]">프로필에서 자동으로 채워졌습니다</p></div>
+            <button onClick={()=>setShowProfileEdit(!showProfileEdit)} className="text-[11px] text-[#63636E] hover:text-[#A1A1AA]">{showProfileEdit?'접기':'수정'}</button>
+          </div>
+          {showProfileEdit?profileFields.map((pf,i)=><div key={pf.key} className="mb-2.5"><label className="block text-[11px] text-[#63636E] mb-1">{pf.label}</label><input value={pf.value} onChange={e=>{const nf=[...profileFields];nf[i]={...nf[i],value:e.target.value};setProfileFields(nf)}} className="inp text-[12.5px]"/></div>)
+          :<div className="flex flex-wrap gap-x-4 gap-y-1">{profileFields.filter(pf=>pf.value).map(pf=><span key={pf.key} className="text-[11px] text-[#63636E]">{pf.label}: <span className="text-[#A1A1AA]">{pf.value.length>20?pf.value.substring(0,20)+'...':pf.value}</span></span>)}</div>}
+        </div>}
+
+        {/* 실행 버튼 */}
+        <div className="flex justify-between items-center">
+          {mode==='form'&&<button onClick={()=>{setMode('chat');if(m)initC(m)}} className="text-[12px] text-[#63636E]">💬 AI 상담 모드</button>}
+          {mode==='oneclick'&&<div/>}
+          <button onClick={generate} className="px-5 py-2.5 bg-[#00D4AA] text-[#09090B] font-semibold text-[13px] rounded-md">{mode==='oneclick'?'⚡':''} 실행 · ◆{m.credit_cost}</button>
         </div>
       </div>
 
-      :mode==='form'?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
-        {fields.length>0?renderFormFields(fields):<div className="mb-3.5"><label className="block text-[11.5px] font-medium text-[#A1A1AA] mb-1.5">추가 정보</label><textarea value={fd.extra||''} onChange={e=>setFd({...fd,extra:e.target.value})} placeholder="추가 정보 입력 (선택)" className="inp min-h-[80px]"/></div>}
-        <div className="flex justify-between items-center mt-2"><button onClick={()=>{setMode('chat');if(m)initC(m)}} className="text-[12px] text-[#63636E]">💬 AI 상담 모드</button><button onClick={generate} className="px-4 py-2 bg-[#00D4AA] text-[#09090B] font-semibold text-[12.5px] rounded-md">실행 · ◆{m.credit_cost}</button></div>
-      </div>
-
-      :<div className="bg-[#141417] border border-white/[.06] rounded-[10px] overflow-hidden"><div className="flex flex-col h-[400px]">
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">{msgs.map((msg,i)=><div key={i} className={`max-w-[82%] px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed ${msg.type==='ai'?'bg-[#1C1C20] text-[#A1A1AA] rounded-bl-sm self-start':'bg-[#00D4AA] text-[#09090B] font-medium rounded-br-sm self-end'}`}>{msg.text}</div>)}</div>
-        <div className="p-2.5 border-t border-white/[.06] flex gap-1.5 bg-[#141417]"><input value={ci} onChange={e=>setCi(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendC()} placeholder="답변 입력..." className="flex-1 px-3 py-2 border border-white/10 rounded-[5px] text-[13px] bg-[#111114] text-white placeholder:text-[#3a3a42]"/><button onClick={sendC} className="px-3 py-2 bg-[#00D4AA] text-[#09090B] font-semibold text-[12px] rounded-md">전송</button></div>
-      </div></div>}
+      /* oneclick + 입력 필드 없음 → 바로 실행 */
+      :<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-9 text-center"><p className="text-[13.5px] text-[#A1A1AA] mb-4">사업 정보 기반으로 즉시 실행합니다.</p><button onClick={generate} className="px-6 py-3 bg-[#00D4AA] text-[#09090B] font-semibold text-sm rounded-lg">⚡ 바로 실행</button><p className="text-[11px] text-[#63636E] mt-2.5">◆{m.credit_cost} 크레딧</p></div>}
     </div>
   )
 }
