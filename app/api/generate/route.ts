@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, result: `[시뮬레이션 모드]\n\nAPI 키가 설정되지 않았습니다.\n모듈: ${moduleId}\n모델: ${aiModel}\n\n.env.local에 ANTHROPIC_API_KEY를 추가하면 실제 AI 생성이 작동합니다.\n\n--- 전달된 프롬프트 ---\n${fullPrompt.substring(0, 500)}...`, usage: { input_tokens: 0, output_tokens: 0, model: aiModel, generation_time_ms: Date.now()-start } })
     }
 
-    const model = aiModel || 'claude-sonnet-4-5-20250929'
+    const model = aiModel || 'claude-sonnet-4-6'
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },

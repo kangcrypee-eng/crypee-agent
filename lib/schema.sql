@@ -35,7 +35,7 @@ CREATE TABLE modules (
   output_mode TEXT DEFAULT 'generate' CHECK (output_mode IN ('generate', 'template')),
   
   -- AI 설정
-  ai_model TEXT DEFAULT 'claude-sonnet-4-5-20250929',
+  ai_model TEXT DEFAULT 'claude-sonnet-4-6',
   max_tokens INTEGER DEFAULT 4096,
   temperature NUMERIC(3,2) DEFAULT 0.3,
   system_prompt TEXT NOT NULL,

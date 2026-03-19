@@ -27,7 +27,7 @@ function UploadContent() {
   const [outputMode, setOutputMode] = useState<'generate' | 'template'>('generate')
   const [status, setStatus] = useState<'draft' | 'active' | 'inactive'>('draft')
 
-  const [aiModel, setAiModel] = useState<ModelId>('claude-sonnet-4-5-20250929')
+  const [aiModel, setAiModel] = useState<ModelId>('claude-sonnet-4-6')
   const [maxTokens, setMaxTokens] = useState(4096)
   const [temperature, setTemperature] = useState(0.3)
   const [systemPrompt, setSystemPrompt] = useState('')
