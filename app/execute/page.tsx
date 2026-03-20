@@ -124,7 +124,7 @@ function Exec() {
   const sendC=()=>{if(!ci.trim()||!m)return;const t=ci.trim();setMsgs(p=>[...p,{type:'user',text:t}]);setCi('');const q=m.chat_questions||[];const ns=cs+1;if(q[cs])setFd(p=>({...p,[q[cs].field]:t}));setCs(ns);setTimeout(()=>{if(ns<q.length)setMsgs(p=>[...p,{type:'ai',text:q[ns].question}]);else{setMsgs(p=>[...p,{type:'ai',text:'정보 수집 완료. 생성합니다.'}]);setTimeout(generate,800)}},500)}
 
   const generate=async()=>{
-    if(!m)return;if(credits<m.credit_cost){alert('크레딧 부족');return}
+    if(!m)return;if(credits<m.credit_cost){if(confirm('크레딧이 부족합니다. 충전 페이지로 이동할까요?'))router.push('/credits');return}
     setGen(true);for(let i=0;i<4;i++){setProg((i+1)*25);await new Promise(r=>setTimeout(r,700))}
 
     // 프로필 데이터: 수정된 값 우선 사용
