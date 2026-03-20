@@ -6,7 +6,7 @@ interface Profile {
   id: string; role: string; business_name?: string; representative?: string;
   business_number?: string; business_type?: string; sector?: string; item?: string;
   service_desc?: string; target_customer?: string; track_record?: string;
-  address?: string; phone?: string; email?: string; credits: number;
+  address?: string; phone?: string; email?: string; opening_date?: string; credits: number;
 }
 
 interface AuthCtx {

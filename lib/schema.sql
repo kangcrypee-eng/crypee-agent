@@ -132,6 +132,8 @@ CREATE TABLE credit_transactions (
   type TEXT NOT NULL CHECK (type IN ('purchase', 'use', 'refund', 'bonus', 'free_regen')),
   description TEXT,
   module_id TEXT,
+  payment_key TEXT,
+  order_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

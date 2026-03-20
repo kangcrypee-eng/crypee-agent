@@ -1,11 +1,16 @@
 'use client'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Suspense } from 'react'
+import { useEffect, Suspense } from 'react'
+import { useAuth } from '@/components/AuthProvider'
 
 function SuccessContent() {
   const params = useSearchParams()
   const router = useRouter()
+  const { refresh } = useAuth()
   const credits = params.get('credits') || '0'
+
+  // 결제 완료 후 프로필 데이터 리프레시하여 크레딧 갱신
+  useEffect(() => { refresh() }, [])
 
   return (
     <div className="max-w-[480px] mx-auto pt-20 pb-20 text-center animate-in">
