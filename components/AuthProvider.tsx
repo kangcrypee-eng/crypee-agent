@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface Profile {
@@ -21,26 +21,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [credits, setCredits] = useState(0)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!supabase) { setLoading(false); return }
-    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('Auth timeout')), 5000))
     try {
-      const { data: { user: au } } = await Promise.race([supabase.auth.getUser(), timeout])
-      if (!au) { setUser(null); setLoading(false); return }
-      const { data } = await Promise.race([supabase.from('profiles').select('*').eq('id', au.id).single(), timeout])
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) { setUser(null); setCredits(0); setLoading(false); return }
+      const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
       if (data) { setUser(data as Profile); setCredits(data.credits || 0) }
+      else { setUser(null); setCredits(0) }
     } catch (e) { console.error('Auth:', e) }
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     load()
     if (!supabase) return
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => load())
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') { setUser(null); setCredits(0); setLoading(false) }
+      else load()
+    })
     return () => subscription.unsubscribe()
-  }, [])
+  }, [load])
 
-  const signOut = async () => { if (supabase) await supabase.auth.signOut(); setUser(null); setCredits(0) }
+  const signOut = async () => {
+    if (supabase) await supabase.auth.signOut()
+    setUser(null); setCredits(0)
+  }
 
   return <Ctx.Provider value={{ user, loading, isAdmin: user?.role==='admin', credits, setCredits, signOut, refresh:load }}>{children}</Ctx.Provider>
 }
