@@ -66,6 +66,9 @@ CREATE TABLE modules (
   estimated_output_tokens INTEGER DEFAULT 2000,
   estimated_cost_krw NUMERIC(10,2) DEFAULT 0,
   
+  -- 샘플 결과물
+  sample_output TEXT,
+
   -- 체이닝
   chain_next TEXT[] DEFAULT ARRAY[]::TEXT[],
   chain_labels JSONB DEFAULT '{}',
@@ -121,6 +124,7 @@ CREATE TABLE generations (
   actual_cost_krw NUMERIC(10,2),
   ai_model TEXT,
   generation_time_ms INTEGER,
+  regen_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

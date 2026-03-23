@@ -45,6 +45,7 @@ function UploadContent() {
   const [forbiddenExpr, setForbiddenExpr] = useState('')
   const [requiredExpr, setRequiredExpr] = useState('')
   const [refInstruction, setRefInstruction] = useState('')
+  const [sampleOutput, setSampleOutput] = useState('')
 
   const [fields, setFields] = useState<{ key: string; label: string; type: string; placeholder: string; required: boolean }[]>([])
   const [questions, setQuestions] = useState<{ question: string; field: string }[]>([])
@@ -73,6 +74,7 @@ function UploadContent() {
         setForbiddenExpr((data.forbidden_expressions || []).join(', '))
         setRequiredExpr((data.required_expressions || []).join(', '))
         setRefInstruction(data.reference_instruction || '')
+        setSampleOutput(data.sample_output || '')
         setCreditCost(data.credit_cost)
         setChainNext((data.chain_next || []).join(', '))
         if (data.additional_inputs) setFields(data.additional_inputs)
@@ -122,6 +124,7 @@ function UploadContent() {
       forbidden_expressions: forbiddenExpr.split(',').map(t => t.trim()).filter(Boolean),
       required_expressions: requiredExpr.split(',').map(t => t.trim()).filter(Boolean),
       reference_instruction: refInstruction,
+      sample_output: sampleOutput || null,
       credit_cost: creditCost,
       estimated_input_tokens: pricing?.inputTokens || 0,
       estimated_output_tokens: pricing?.outputTokens || 0,
@@ -283,6 +286,19 @@ function UploadContent() {
             {['business_name', 'representative', 'business_number', 'business_type', 'sector', 'item', 'service_desc', 'target_customer', 'track_record', 'address', 'phone', 'email'].map(v => (
               <code key={v} className="text-[10px] text-[#00D4AA]/70 bg-[#00D4AA]/5 px-1.5 py-0.5 rounded mx-0.5 font-mono">{`{{${v}}}`}</code>
             ))}
+          </div>
+        </Field>
+      </Section>
+
+      {/* ===== 샘플 결과물 ===== */}
+      <Section title="샘플 결과물" desc="모듈 마켓에서 사용자가 미리 볼 수 있는 예시 결과물입니다 (크레딧 차감 없음)">
+        <Field label="샘플 결과물" desc="더미 사업자 정보로 미리 생성한 결과물을 붙여넣으세요. 비워두면 '예시 없음'으로 표시됩니다.">
+          <textarea value={sampleOutput} onChange={e => setSampleOutput(e.target.value)} rows={10}
+            placeholder="모듈을 한 번 실행한 결과물을 여기에 붙여넣으세요..."
+            className="inp font-mono text-[12.5px] leading-[1.7]" />
+          <div className="flex justify-between mt-1.5">
+            <span className="text-[10.5px] text-[#63636E]">{sampleOutput ? '입력됨' : '비어있음'}</span>
+            <span className="text-[10.5px] text-[#63636E] font-mono">{sampleOutput.length.toLocaleString()}자</span>
           </div>
         </Field>
       </Section>
