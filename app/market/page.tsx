@@ -73,7 +73,7 @@ export default function MarketPage() {
             {!selected.sample_output&&<div className="mb-4 py-6 text-center rounded-lg border border-dashed" style={{borderColor:'var(--border-strong)'}}><p className="text-[12px]" style={{color:'var(--text-muted)'}}>예시 결과물이 아직 준비되지 않았습니다</p></div>}
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push('/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>
