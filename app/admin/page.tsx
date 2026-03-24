@@ -5,7 +5,9 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { MODEL_PRICING } from '@/lib/pricing'
 
-const modeLabel: Record<string, string> = { oneclick: '⚡ 원클릭', form: '📝 폼', chat: '💬 대화' }
+const modeLabel: Record<string, string> = { oneclick: '⚡ 원클릭', form: '📝 폼', chat: '💬 대화', alert: '🔔 알림' }
+// 시드 모듈 판별: M + 숫자 패턴 (M01, M02, ..., M42, M100)
+const isSeedModule = (id: string) => /^M\d+$/.test(id)
 const statusLabel: Record<string, string> = { active: '활성', draft: '초안', inactive: '비활성' }
 const statusColor: Record<string, string> = { active: 'var(--accent)', draft: '#EFAA5B', inactive: 'var(--text-muted)' }
 
@@ -59,7 +61,7 @@ export default function AdminPage() {
     total: modules.length,
     active: modules.filter(m => m.status === 'active').length,
     draft: modules.filter(m => m.status === 'draft').length,
-    totalCredits: modules.reduce((s, m) => s + (m.uses * m.credit_cost), 0),
+    totalRevenue: modules.reduce((s, m) => s + (m.uses * (m.price_krw||0)), 0),
   }
 
   if (loading) return <div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
@@ -84,7 +86,7 @@ export default function AdminPage() {
           ['전체 모듈', stats.total, ''],
           ['활성', stats.active, 'var(--accent)'],
           ['초안', stats.draft, '#EFAA5B'],
-          ['총 크레딧 소비', stats.totalCredits.toLocaleString(), '#EFAA5B'],
+          ['예상 매출', '₩'+stats.totalRevenue.toLocaleString(), '#EFAA5B'],
         ].map(([label, value, color]) => (
           <div key={label as string} className="rounded-xl p-4 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
             <div className="text-[10.5px] uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{label}</div>
@@ -110,7 +112,7 @@ export default function AdminPage() {
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
               <tr className="border-b" style={{borderColor:'var(--border)'}}>
-                {['상태', 'ID', '모듈명', '카테고리', '모드', 'AI 모델', '크레딧', '사용', '액션'].map(h => (
+                {['상태', 'ID', '모듈명', '카테고리', '모드', 'AI 모델', '가격', '사용', '출처', '액션'].map(h => (
                   <th key={h} className="px-4 py-3 text-[10.5px] font-semibold text-left uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{h}</th>
                 ))}
               </tr>
@@ -133,13 +135,14 @@ export default function AdminPage() {
                   <td className="px-4 py-3 text-[12px]" style={{color:'var(--text-muted)'}}>{m.category}</td>
                   <td className="px-4 py-3 text-[11.5px] font-semibold" style={{color:`var(--mode-${m.mode}-text)`}}>{modeLabel[m.mode]}</td>
                   <td className="px-4 py-3 text-[11.5px]" style={{color:'var(--text-muted)'}}>{getModelLabel(m.ai_model)}</td>
-                  <td className="px-4 py-3 text-[13px] font-semibold">◆{m.credit_cost}</td>
+                  <td className="px-4 py-3 text-[13px] font-semibold" style={{color:'var(--accent)'}}>{(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}`}</td>
                   <td className="px-4 py-3 text-[13px]">{m.uses?.toLocaleString()}</td>
+                  <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={isSeedModule(m.id)?{background:'rgba(91,141,239,0.1)',color:'#5B8DEF'}:{background:'var(--accent-bg)',color:'var(--accent)'}}>{isSeedModule(m.id)?'시드(SQL)':'어드민'}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1.5">
                       <button onClick={() => router.push(`/admin/upload?edit=${m.id}`)}
                         className="px-2.5 py-1 rounded-md text-[11px] font-medium border transition-all hover:opacity-80" style={{background:'var(--surface-hover)',borderColor:'var(--border)',color:'var(--text-secondary)'}}>
-                        수정
+                        {isSeedModule(m.id)?'보기':'수정'}
                       </button>
                       <button onClick={() => setDeleteTarget(m.id)}
                         className="px-2.5 py-1 border rounded-md text-[11px] font-medium transition-all hover:opacity-80" style={{borderColor:'var(--error-border)',color:'var(--error-text)'}}>

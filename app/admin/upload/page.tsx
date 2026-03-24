@@ -158,11 +158,24 @@ function UploadContent() {
 
   if (loading || !isAdmin) return null
 
+  const isSeed = editId ? /^M\d+$/.test(editId) : false
+  const readOnly = isSeed
+
   return (
     <div className="max-w-[860px] mx-auto pt-6 pb-24 animate-in">
       <button onClick={() => router.push('/admin')} className="text-[12.5px] hover:opacity-70 mb-4 inline-flex items-center gap-1" style={{color:'var(--text-muted)'}}>
         ← 어드민으로 돌아가기
       </button>
+
+      {readOnly && (
+        <div className="mb-4 p-4 rounded-xl border flex items-start gap-3" style={{background:'rgba(91,141,239,0.05)',borderColor:'rgba(91,141,239,0.2)'}}>
+          <span className="text-lg">ℹ️</span>
+          <div>
+            <p className="text-[13px] font-semibold" style={{color:'#5B8DEF'}}>시드(SQL) 모듈 — 읽기 전용</p>
+            <p className="text-[12px] mt-0.5" style={{color:'var(--text-secondary)'}}>이 모듈은 <code className="px-1.5 py-0.5 rounded text-[11px] font-mono" style={{background:'var(--surface-hover)'}}>seed_modules.sql</code>에서 관리됩니다. 프롬프트나 설정을 변경하려면 SQL 파일을 수정한 후 Supabase에서 재실행해주세요. 상태(활성/비활성) 전환은 어드민 목록에서 가능합니다.</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -506,8 +519,10 @@ function UploadContent() {
       {/* ===== 하단 액션 ===== */}
       <div className="fixed bottom-0 left-0 right-0 backdrop-blur-lg z-40 border-t" style={{background:'var(--bg)',borderColor:'var(--border)'}}>
         <div className="max-w-[860px] mx-auto px-5 py-3 flex justify-between items-center">
-          <button onClick={() => router.push('/admin')} className="text-[13px]" style={{color:'var(--text-muted)'}}>취소</button>
-          <div className="flex gap-2">
+          <button onClick={() => router.push('/admin')} className="text-[13px]" style={{color:'var(--text-muted)'}}>{readOnly?'돌아가기':'취소'}</button>
+          {readOnly
+          ?<span className="text-[12px]" style={{color:'var(--text-muted)'}}>시드 모듈은 SQL에서 수정해주세요</span>
+          :<div className="flex gap-2">
             <button onClick={() => handleSave('draft')} disabled={saving}
               className="px-5 py-2.5 border rounded-lg text-[13px] font-medium hover:opacity-80 disabled:opacity-50" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               {saving ? '저장 중...' : '임시저장'}
@@ -516,7 +531,7 @@ function UploadContent() {
               className="px-6 py-2.5 rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-50" style={{background:'var(--accent)',color:'var(--bg)'}}>
               {saving ? '저장 중...' : editId ? '저장 및 배포' : '생성 및 배포'}
             </button>
-          </div>
+          </div>}
         </div>
       </div>
 
