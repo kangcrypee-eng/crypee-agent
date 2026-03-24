@@ -71,3 +71,33 @@ CREATE POLICY "Users own alert logs" ON alert_logs FOR ALL USING (auth.uid() = u
 -- 4. 기존 컬럼 (이전에 추가한 것들 — IF NOT EXISTS로 안전)
 ALTER TABLE modules ADD COLUMN IF NOT EXISTS sample_output TEXT;
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS regen_count INTEGER DEFAULT 0;
+
+-- 5. 정부지원사업 공고 알림 모듈 등록
+INSERT INTO modules (id, name, description, category, icon, tags, mode, output_mode, ai_model, max_tokens, temperature, system_prompt, user_prompt_template, credit_cost, price_krw, status, uses)
+VALUES (
+  'M100',
+  '정부지원사업 공고 알림',
+  '조건에 맞는 공고가 올라오면 카카오톡으로 알림',
+  '운영/관리',
+  '🔔',
+  ARRAY['정부지원','공고','알림','자동화'],
+  'alert',
+  'automation',
+  'claude-haiku-4-5',
+  1024,
+  0.0,
+  '정부지원사업 공고 자동 알림 모듈',
+  '알림 설정 페이지에서 필터를 설정하세요.',
+  0,
+  1980,
+  'active',
+  0
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  mode = EXCLUDED.mode,
+  output_mode = EXCLUDED.output_mode,
+  price_krw = EXCLUDED.price_krw,
+  status = EXCLUDED.status,
+  updated_at = NOW();
