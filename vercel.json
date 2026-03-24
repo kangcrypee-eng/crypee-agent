@@ -5,6 +5,6 @@
     "app/api/alerts/check/route.ts": { "maxDuration": 60 }
   },
   "crons": [
-    { "path": "/api/alerts/check", "schedule": "0 * * * *" }
+    { "path": "/api/alerts/check", "schedule": "0 9 * * *" }
   ]
 }
