@@ -2,13 +2,93 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body{background:#09090B;color:#F4F4F5;-webkit-font-smoothing:antialiased;font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif}
+
+/* ===== Theme Variables ===== */
+:root {
+  --bg: #FFFFFF;
+  --bg-nav: rgba(255,255,255,0.8);
+  --surface: #F5F5F7;
+  --surface-hover: #EDEDF0;
+  --surface-input: #FFFFFF;
+  --text: #111111;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --border: rgba(0,0,0,0.08);
+  --border-strong: rgba(0,0,0,0.12);
+  --accent: #00B894;
+  --accent-bg: rgba(0,184,148,0.08);
+  --accent-border: rgba(0,184,148,0.2);
+  --scrollbar: #D0D0D5;
+  --spinner-track: #E8E8EC;
+  --input-placeholder: #AAAAAA;
+  --preview-bg: #FAFAF8;
+  --preview-text: #1a1a1a;
+  --error-bg: rgba(239,91,91,0.08);
+  --error-border: rgba(239,91,91,0.15);
+  --error-text: #DC3545;
+  --mode-oneclick-bg: rgba(0,184,148,0.08);
+  --mode-oneclick-text: #00B894;
+  --mode-oneclick-border: rgba(0,184,148,0.2);
+  --mode-form-bg: rgba(91,141,239,0.08);
+  --mode-form-text: #4A7FD6;
+  --mode-form-border: rgba(91,141,239,0.2);
+  --mode-chat-bg: rgba(155,141,255,0.08);
+  --mode-chat-text: #7B6FE6;
+  --mode-chat-border: rgba(155,141,255,0.2);
+}
+
+[data-theme="dark"] {
+  --bg: #09090B;
+  --bg-nav: rgba(9,9,11,0.8);
+  --surface: #141417;
+  --surface-hover: #1C1C20;
+  --surface-input: #111114;
+  --text: #F4F4F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #63636E;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.1);
+  --accent: #00D4AA;
+  --accent-bg: rgba(0,212,170,0.1);
+  --accent-border: rgba(0,212,170,0.2);
+  --scrollbar: #232328;
+  --spinner-track: #1F1F23;
+  --input-placeholder: #3a3a42;
+  --preview-bg: #FAFAF8;
+  --preview-text: #1a1a1a;
+  --error-bg: rgba(239,91,91,0.1);
+  --error-border: rgba(239,91,91,0.2);
+  --error-text: #EF5B5B;
+  --mode-oneclick-bg: rgba(0,212,170,0.1);
+  --mode-oneclick-text: #00D4AA;
+  --mode-oneclick-border: rgba(0,212,170,0.2);
+  --mode-form-bg: rgba(91,141,239,0.1);
+  --mode-form-text: #5B8DEF;
+  --mode-form-border: rgba(91,141,239,0.2);
+  --mode-chat-bg: rgba(155,141,255,0.1);
+  --mode-chat-text: #9B8DFF;
+  --mode-chat-border: rgba(155,141,255,0.2);
+}
+
+body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif;transition:background .2s,color .2s}
 ::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-thumb{background:#232328;border-radius:2px}
-input:focus,textarea:focus,select:focus{outline:none;border-color:#00D4AA!important;box-shadow:0 0 0 2px rgba(0,212,170,0.1)}
-.inp{width:100%;padding:10px 14px;border:1px solid rgba(255,255,255,0.1);border-radius:7px;font-size:13px;font-family:inherit;background:#111114;color:#F4F4F5}
-.inp::placeholder{color:#3a3a42}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)!important;box-shadow:0 0 0 2px var(--accent-bg)}
+.inp{width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:7px;font-size:13px;font-family:inherit;background:var(--surface-input);color:var(--text);transition:background .2s,border-color .2s,color .2s}
+.inp::placeholder{color:var(--input-placeholder)}
 .animate-in{animation:fadeIn .3s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:32px;height:32px;border:2.5px solid #1F1F23;border-top-color:#00D4AA;border-radius:50%;animation:spin .6s linear infinite}
+.spinner{width:32px;height:32px;border:2.5px solid var(--spinner-track);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+
+/* Theme-aware utility classes */
+.t-bg{background:var(--bg)}
+.t-surface{background:var(--surface)}
+.t-surface-hover:hover{background:var(--surface-hover)}
+.t-border{border-color:var(--border)}
+.t-border-strong{border-color:var(--border-strong)}
+.t-text{color:var(--text)}
+.t-text-secondary{color:var(--text-secondary)}
+.t-text-muted{color:var(--text-muted)}
+.t-accent{color:var(--accent)}
+.t-accent-bg{background:var(--accent)}

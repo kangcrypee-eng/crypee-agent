@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 
 const PLANS = [
-  { id: 'plan_10', credits: 10, price: 15000, perCredit: 1500, label: '', color: 'border-white/[.06]' },
-  { id: 'plan_30', credits: 30, price: 39000, perCredit: 1300, label: '인기', color: 'border-[#00D4AA]/30 ring-1 ring-[#00D4AA]/20' },
-  { id: 'plan_100', credits: 100, price: 99000, perCredit: 990, label: '최저가', color: 'border-[#5B8DEF]/30 ring-1 ring-[#5B8DEF]/20' },
+  { id: 'plan_10', credits: 10, price: 15000, perCredit: 1500, label: '', color: '' },
+  { id: 'plan_30', credits: 30, price: 39000, perCredit: 1300, label: '인기', color: 'accent' },
+  { id: 'plan_100', credits: 100, price: 99000, perCredit: 990, label: '최저가', color: 'blue' },
 ]
 
 export default function CreditsPage() {
@@ -51,45 +51,53 @@ export default function CreditsPage() {
     setPaying(false)
   }
 
-  if (loading) return <div className="pt-20 text-center text-[#63636E]">로딩 중...</div>
+  const planBorderStyle = (plan: typeof PLANS[number], isSelected: boolean) => {
+    if (!isSelected) return { borderColor: 'var(--border)', background: 'transparent' }
+    if (plan.color === 'accent') return { borderColor: 'var(--accent-border)', boxShadow: '0 0 0 1px var(--accent-border)', background: 'var(--accent-bg)' }
+    if (plan.color === 'blue') return { borderColor: 'rgba(91,141,239,0.3)', boxShadow: '0 0 0 1px rgba(91,141,239,0.2)', background: 'rgba(91,141,239,0.05)' }
+    return { borderColor: 'var(--border)', background: 'var(--accent-bg)' }
+  }
+
+  if (loading) return <div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
   if (!user) return null
 
   return (
     <div className="max-w-[600px] mx-auto pt-8 pb-20 animate-in">
       <h1 className="text-xl font-bold mb-1">크레딧 충전</h1>
-      <p className="text-[12px] text-[#63636E] mb-6">현재 보유: <span className="text-[#00D4AA] font-semibold">◆ {credits}</span></p>
+      <p className="text-[12px] mb-6" style={{color:'var(--text-muted)'}}>현재 보유: <span className="font-semibold" style={{color:'var(--accent)'}}>◆ {credits}</span></p>
 
       <div className="space-y-3 mb-6">
         {PLANS.map(plan => (
           <button key={plan.id} onClick={() => setSelected(plan.id)}
-            className={`w-full p-5 rounded-xl border text-left transition-all ${selected === plan.id ? plan.color + ' bg-white/[.02]' : 'border-white/[.06] hover:border-white/10'}`}>
+            className="w-full p-5 rounded-xl border text-left transition-all"
+            style={planBorderStyle(plan, selected === plan.id)}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected === plan.id ? 'border-[#00D4AA]' : 'border-white/20'}`}>
-                  {selected === plan.id && <div className="w-2.5 h-2.5 rounded-full bg-[#00D4AA]" />}
+                <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center" style={{borderColor: selected === plan.id ? 'var(--accent)' : 'var(--border-strong)'}}>
+                  {selected === plan.id && <div className="w-2.5 h-2.5 rounded-full" style={{background:'var(--accent)'}} />}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-bold text-white">◆ {plan.credits} 크레딧</span>
-                    {plan.label && <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${plan.label === '인기' ? 'bg-[rgba(0,212,170,0.1)] text-[#00D4AA]' : 'bg-[rgba(91,141,239,0.1)] text-[#5B8DEF]'}`}>{plan.label}</span>}
+                    <span className="text-[15px] font-bold" style={{color:'var(--text)'}}>◆ {plan.credits} 크레딧</span>
+                    {plan.label && <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={plan.label === '인기' ? {background:'var(--mode-oneclick-bg)',color:'var(--mode-oneclick-text)'} : {background:'var(--mode-form-bg)',color:'var(--mode-form-text)'}}>{plan.label}</span>}
                   </div>
-                  <span className="text-[11px] text-[#63636E]">크레딧당 ₩{plan.perCredit.toLocaleString()}</span>
+                  <span className="text-[11px]" style={{color:'var(--text-muted)'}}>크레딧당 ₩{plan.perCredit.toLocaleString()}</span>
                 </div>
               </div>
-              <span className="text-[17px] font-bold text-white">₩{plan.price.toLocaleString()}</span>
+              <span className="text-[17px] font-bold" style={{color:'var(--text)'}}>₩{plan.price.toLocaleString()}</span>
             </div>
           </button>
         ))}
       </div>
 
       <button onClick={handlePayment} disabled={paying}
-        className="w-full py-3.5 bg-[#00D4AA] text-[#09090B] font-bold text-[14px] rounded-lg hover:bg-[#00E8BB] disabled:opacity-50 transition-all">
+        className="w-full py-3.5 font-bold text-[14px] rounded-lg hover:opacity-90 disabled:opacity-50 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>
         {paying ? '결제 준비 중...' : `₩${(PLANS.find(p => p.id === selected)?.price || 0).toLocaleString()} 결제하기`}
       </button>
 
-      <div className="mt-6 bg-[#141417] border border-white/[.06] rounded-xl p-5">
-        <p className="text-[12px] font-semibold text-[#A1A1AA] mb-2">안내</p>
-        <ul className="text-[11.5px] text-[#63636E] space-y-1 leading-relaxed">
+      <div className="mt-6 rounded-xl p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+        <p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-secondary)'}}>안내</p>
+        <ul className="text-[11.5px] space-y-1 leading-relaxed" style={{color:'var(--text-muted)'}}>
           <li>· 크레딧은 구매일로부터 5년간 유효합니다.</li>
           <li>· 구매 후 7일 이내 미사용분에 한해 환불 가능합니다.</li>
           <li>· 무료 크레딧은 환불 대상이 아닙니다.</li>

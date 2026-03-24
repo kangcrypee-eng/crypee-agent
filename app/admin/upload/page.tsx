@@ -160,17 +160,17 @@ function UploadContent() {
 
   return (
     <div className="max-w-[860px] mx-auto pt-6 pb-24 animate-in">
-      <button onClick={() => router.push('/admin')} className="text-[12.5px] text-[#63636E] hover:text-[#A1A1AA] mb-4 inline-flex items-center gap-1">
+      <button onClick={() => router.push('/admin')} className="text-[12.5px] hover:opacity-70 mb-4 inline-flex items-center gap-1" style={{color:'var(--text-muted)'}}>
         ← 어드민으로 돌아가기
       </button>
 
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-xl font-bold">{editId ? '모듈 수정' : '모듈 생성'}</h2>
-          <p className="text-[13px] text-[#63636E] mt-0.5">AI 에이전트 모듈을 설정합니다</p>
+          <p className="text-[13px] mt-0.5" style={{color:'var(--text-muted)'}}>AI 에이전트 모듈을 설정합니다</p>
         </div>
         {editId && (
-          <span className={`px-3 py-1 rounded-full text-[11px] font-semibold ${status === 'active' ? 'bg-[rgba(0,212,170,0.1)] text-[#00D4AA]' : 'bg-[rgba(239,170,91,0.1)] text-[#EFAA5B]'}`}>
+          <span className="px-3 py-1 rounded-full text-[11px] font-semibold" style={status === 'active' ? {background:'var(--accent-bg)',color:'var(--accent)'} : {background:'rgba(239,170,91,0.1)',color:'#EFAA5B'}}>
             {status === 'active' ? '활성' : status === 'draft' ? '초안' : '비활성'}
           </span>
         )}
@@ -209,9 +209,10 @@ function UploadContent() {
             <div className="grid grid-cols-3 gap-2">
               {([['oneclick', '⚡ 원클릭', '프로필만으로 즉시 생성'], ['form', '📝 폼 입력', '추가 필드 입력 후 생성'], ['chat', '💬 대화형', 'AI와 대화하며 생성']] as const).map(([m, label, sub]) => (
                 <button key={m} onClick={() => setMode(m as any)}
-                  className={`p-3 rounded-lg border text-left transition-all ${mode === m ? 'border-[#00D4AA]/30 bg-[#00D4AA]/5' : 'border-white/[.06] hover:border-white/10'}`}>
-                  <div className={`text-[13px] font-semibold ${mode === m ? 'text-[#00D4AA]' : 'text-white'}`}>{label}</div>
-                  <div className="text-[10.5px] text-[#63636E] mt-0.5">{sub}</div>
+                  className="p-3 rounded-lg border text-left transition-all"
+                  style={mode === m ? {borderColor:'var(--accent-border)',background:'var(--accent-bg)'} : {borderColor:'var(--border)'}}>
+                  <div className="text-[13px] font-semibold" style={{color: mode === m ? 'var(--accent)' : 'var(--text)'}}>{label}</div>
+                  <div className="text-[10.5px] mt-0.5" style={{color:'var(--text-muted)'}}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -222,9 +223,10 @@ function UploadContent() {
             <div className="grid grid-cols-2 gap-2">
               {([['generate', '🤖 AI 생성형', 'AI가 내용을 처음부터 생성'], ['template', '📋 템플릿 치환형', '기준 문서에서 변수만 교체']] as const).map(([m, label, sub]) => (
                 <button key={m} onClick={() => setOutputMode(m as any)}
-                  className={`p-3 rounded-lg border text-left transition-all ${outputMode === m ? 'border-[#00D4AA]/30 bg-[#00D4AA]/5' : 'border-white/[.06] hover:border-white/10'}`}>
-                  <div className={`text-[13px] font-semibold ${outputMode === m ? 'text-[#00D4AA]' : 'text-white'}`}>{label}</div>
-                  <div className="text-[10.5px] text-[#63636E] mt-0.5">{sub}</div>
+                  className="p-3 rounded-lg border text-left transition-all"
+                  style={outputMode === m ? {borderColor:'var(--accent-border)',background:'var(--accent-bg)'} : {borderColor:'var(--border)'}}>
+                  <div className="text-[13px] font-semibold" style={{color: outputMode === m ? 'var(--accent)' : 'var(--text)'}}>{label}</div>
+                  <div className="text-[10.5px] mt-0.5" style={{color:'var(--text-muted)'}}>{sub}</div>
                 </button>
               ))}
             </div>
@@ -238,10 +240,11 @@ function UploadContent() {
           <div className="grid grid-cols-3 gap-3">
             {(Object.entries(MODEL_PRICING) as [ModelId, typeof MODEL_PRICING[ModelId]][]).map(([key, val]) => (
               <button key={key} onClick={() => setAiModel(key)}
-                className={`p-4 rounded-lg border text-left transition-all ${aiModel === key ? 'border-[#00D4AA]/30 bg-[#00D4AA]/5 ring-1 ring-[#00D4AA]/20' : 'border-white/[.06] hover:border-white/10'}`}>
-                <div className={`text-[14px] font-bold ${aiModel === key ? 'text-[#00D4AA]' : 'text-white'}`}>{val.label}</div>
-                <div className="text-[11px] text-[#63636E] mt-1">{val.desc}</div>
-                <div className="text-[10px] text-[#63636E] mt-2 font-mono bg-black/20 rounded px-2 py-1 inline-block">
+                className="p-4 rounded-lg border text-left transition-all"
+                style={aiModel === key ? {borderColor:'var(--accent-border)',background:'var(--accent-bg)',boxShadow:'0 0 0 1px var(--accent-border)'} : {borderColor:'var(--border)'}}>
+                <div className="text-[14px] font-bold" style={{color: aiModel === key ? 'var(--accent)' : 'var(--text)'}}>{val.label}</div>
+                <div className="text-[11px] mt-1" style={{color:'var(--text-muted)'}}>{val.desc}</div>
+                <div className="text-[10px] mt-2 font-mono rounded px-2 py-1 inline-block" style={{color:'var(--text-muted)',background:'rgba(0,0,0,0.1)'}}>
                   입력 ${val.input}/M · 출력 ${val.output}/M
                 </div>
               </button>
@@ -259,8 +262,8 @@ function UploadContent() {
             <div className="pt-1">
               <input type="range" min="0" max="1" step="0.1" value={temperature}
                 onChange={e => setTemperature(Number(e.target.value))}
-                className="w-full accent-[#00D4AA] h-2" />
-              <div className="flex justify-between text-[10px] text-[#63636E] mt-1">
+                className="w-full h-2" style={{accentColor:'var(--accent)'}} />
+              <div className="flex justify-between text-[10px] mt-1" style={{color:'var(--text-muted)'}}>
                 <span>0.0 정확/일관</span><span>1.0 창의적/다양</span>
               </div>
             </div>
@@ -272,8 +275,8 @@ function UploadContent() {
             placeholder={`당신은 ~~ 분야의 전문가입니다.\n\n[작성 원칙]\n1. ...\n2. ...\n\n[출력 구조]\n1. ...\n2. ...`}
             className="inp font-mono text-[12.5px] leading-[1.7]" />
           <div className="flex justify-between mt-1.5">
-            <span className="text-[10.5px] text-[#63636E]">AI에게 부여할 역할과 규칙을 상세하게 작성하세요</span>
-            <span className="text-[10.5px] text-[#63636E] font-mono">~{Math.ceil(systemPrompt.length / 3.5).toLocaleString()} tokens</span>
+            <span className="text-[10.5px]" style={{color:'var(--text-muted)'}}>AI에게 부여할 역할과 규칙을 상세하게 작성하세요</span>
+            <span className="text-[10.5px] font-mono" style={{color:'var(--text-muted)'}}>~{Math.ceil(systemPrompt.length / 3.5).toLocaleString()} tokens</span>
           </div>
         </Field>
 
@@ -281,10 +284,10 @@ function UploadContent() {
           <textarea value={userPromptTemplate} onChange={e => setUserPromptTemplate(e.target.value)} rows={8}
             placeholder={`[사업자 정보]\n상호: {{business_name}}\n대표자: {{representative}}\n업종: {{sector}} / {{item}}\n서비스: {{service_desc}}\n\n위 정보를 바탕으로 작성해주세요.`}
             className="inp font-mono text-[12.5px] leading-[1.7]" />
-          <div className="mt-1.5 p-2.5 bg-black/20 rounded-md">
-            <span className="text-[10.5px] text-[#63636E]">사용 가능 변수: </span>
+          <div className="mt-1.5 p-2.5 rounded-md" style={{background:'rgba(0,0,0,0.08)'}}>
+            <span className="text-[10.5px]" style={{color:'var(--text-muted)'}}>사용 가능 변수: </span>
             {['business_name', 'representative', 'business_number', 'business_type', 'sector', 'item', 'service_desc', 'target_customer', 'track_record', 'address', 'phone', 'email'].map(v => (
-              <code key={v} className="text-[10px] text-[#00D4AA]/70 bg-[#00D4AA]/5 px-1.5 py-0.5 rounded mx-0.5 font-mono">{`{{${v}}}`}</code>
+              <code key={v} className="text-[10px] px-1.5 py-0.5 rounded mx-0.5 font-mono" style={{color:'var(--accent)',background:'var(--accent-bg)'}}>{`{{${v}}}`}</code>
             ))}
           </div>
         </Field>
@@ -297,28 +300,28 @@ function UploadContent() {
             placeholder="모듈을 한 번 실행한 결과물을 여기에 붙여넣으세요..."
             className="inp font-mono text-[12.5px] leading-[1.7]" />
           <div className="flex justify-between mt-1.5">
-            <span className="text-[10.5px] text-[#63636E]">{sampleOutput ? '입력됨' : '비어있음'}</span>
-            <span className="text-[10.5px] text-[#63636E] font-mono">{sampleOutput.length.toLocaleString()}자</span>
+            <span className="text-[10.5px]" style={{color:'var(--text-muted)'}}>{sampleOutput ? '입력됨' : '비어있음'}</span>
+            <span className="text-[10.5px] font-mono" style={{color:'var(--text-muted)'}}>{sampleOutput.length.toLocaleString()}자</span>
           </div>
         </Field>
       </Section>
 
       {/* ===== 레퍼런스 ===== */}
       <Section title="레퍼런스 (예시 파일)" desc="결과물의 기준이 되는 예시 파일을 업로드합니다">
-        <div className="border border-dashed border-white/10 rounded-lg p-8 text-center cursor-pointer hover:border-[#00D4AA]/30 hover:bg-[#00D4AA]/[.02] transition-all mb-4">
+        <div className="border border-dashed rounded-lg p-8 text-center cursor-pointer transition-all mb-4 hover:opacity-80" style={{borderColor:'var(--border-strong)'}}>
           <div className="text-2xl mb-2 opacity-40">📎</div>
-          <p className="text-[13px] text-[#63636E]"><span className="text-[#00D4AA] font-medium">클릭</span>하여 레퍼런스 파일 업로드</p>
-          <p className="text-[11px] text-[#63636E] mt-1">PDF, DOCX, TXT, HWP · 최대 5개 · 파일당 10MB</p>
+          <p className="text-[13px]" style={{color:'var(--text-muted)'}}><span className="font-medium" style={{color:'var(--accent)'}}>클릭</span>하여 레퍼런스 파일 업로드</p>
+          <p className="text-[11px] mt-1" style={{color:'var(--text-muted)'}}>PDF, DOCX, TXT, HWP · 최대 5개 · 파일당 10MB</p>
         </div>
         {refFiles.length > 0 && refFiles.map((f, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 bg-[#111114] rounded-lg mb-2">
+          <div key={i} className="flex items-center gap-3 p-3 rounded-lg mb-2" style={{background:'var(--surface-input)'}}>
             <span className="text-lg">📄</span>
-            <span className="flex-1 text-[13px] text-[#A1A1AA]">{f.name}</span>
+            <span className="flex-1 text-[13px]" style={{color:'var(--text-secondary)'}}>{f.name}</span>
             <select value={f.usage} onChange={e => { const nf = [...refFiles]; nf[i].usage = e.target.value; setRefFiles(nf) }}
-              className="bg-transparent border border-white/10 rounded-md px-2.5 py-1.5 text-[11px] text-[#A1A1AA]">
+              className="bg-transparent border rounded-md px-2.5 py-1.5 text-[11px]" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               <option>스타일 참고</option><option>구조 참고</option><option>템플릿 원본</option>
             </select>
-            <button onClick={() => setRefFiles(refFiles.filter((_, idx) => idx !== i))} className="text-[#63636E] hover:text-[#EF5B5B] text-lg px-1">×</button>
+            <button onClick={() => setRefFiles(refFiles.filter((_, idx) => idx !== i))} className="text-lg px-1 hover:opacity-70" style={{color:'var(--text-muted)'}}>×</button>
           </div>
         ))}
         <Field label="학습 지시" desc="레퍼런스 파일을 어떻게 활용할지 AI에게 지시합니다">
@@ -334,7 +337,8 @@ function UploadContent() {
           <div className="flex gap-2 flex-wrap">
             {allFormats.map(f => (
               <button key={f} onClick={() => toggleFormat(f)}
-                className={`px-4 py-2 rounded-lg text-[13px] font-medium border transition-all ${outputFormats.includes(f) ? 'bg-[#00D4AA]/10 text-[#00D4AA] border-[#00D4AA]/20' : 'border-white/[.06] text-[#63636E] hover:border-white/10'}`}>
+                className="px-4 py-2 rounded-lg text-[13px] font-medium border transition-all"
+                style={outputFormats.includes(f) ? {background:'var(--accent-bg)',color:'var(--accent)',borderColor:'var(--accent-border)'} : {borderColor:'var(--border)',color:'var(--text-muted)'}}>
                 {f.toUpperCase()}
               </button>
             ))}
@@ -386,27 +390,27 @@ function UploadContent() {
       {mode === 'form' && (
         <Section title="사용자 입력 필드" desc="사용자가 추가로 입력해야 하는 필드를 정의합니다">
           {fields.length === 0 && (
-            <p className="text-[13px] text-[#63636E] mb-3">아직 추가된 필드가 없습니다</p>
+            <p className="text-[13px] mb-3" style={{color:'var(--text-muted)'}}>아직 추가된 필드가 없습니다</p>
           )}
           {fields.map((f, i) => (
-            <div key={i} className="p-3 bg-[#111114] rounded-lg mb-2">
+            <div key={i} className="p-3 rounded-lg mb-2" style={{background:'var(--surface-input)'}}>
               <div className="flex gap-2 items-center">
-                <span className="text-[11px] text-[#63636E] w-5 text-center font-mono">{i + 1}</span>
+                <span className="text-[11px] w-5 text-center font-mono" style={{color:'var(--text-muted)'}}>{i + 1}</span>
                 <input value={f.label} onChange={e => updateField(i, 'label', e.target.value)} placeholder="필드 라벨" className="inp flex-1" />
                 <select value={f.type} onChange={e => updateField(i, 'type', e.target.value)} className="inp w-28">
                   <option value="text">텍스트</option><option value="textarea">장문</option>
                   <option value="number">숫자</option><option value="select">선택</option><option value="date">날짜</option>
                 </select>
                 <input value={f.placeholder} onChange={e => updateField(i, 'placeholder', e.target.value)} placeholder="입력 힌트" className="inp flex-1" />
-                <label className="flex items-center gap-1.5 text-[11px] text-[#63636E] whitespace-nowrap cursor-pointer">
-                  <input type="checkbox" checked={f.required} onChange={e => updateField(i, 'required', e.target.checked)} className="accent-[#00D4AA] w-3.5 h-3.5" />
+                <label className="flex items-center gap-1.5 text-[11px] whitespace-nowrap cursor-pointer" style={{color:'var(--text-muted)'}}>
+                  <input type="checkbox" checked={f.required} onChange={e => updateField(i, 'required', e.target.checked)} className="w-3.5 h-3.5" style={{accentColor:'var(--accent)'}} />
                   필수
                 </label>
-                <button onClick={() => removeField(i)} className="text-[#63636E] hover:text-[#EF5B5B] text-lg w-6 text-center">×</button>
+                <button onClick={() => removeField(i)} className="text-lg w-6 text-center hover:opacity-70" style={{color:'var(--text-muted)'}}>×</button>
               </div>
             </div>
           ))}
-          <button onClick={addField} className="mt-2 text-[13px] text-[#00D4AA] hover:text-[#00E8BB] font-medium">+ 입력 필드 추가</button>
+          <button onClick={addField} className="mt-2 text-[13px] font-medium hover:opacity-80" style={{color:'var(--accent)'}}>+ 입력 필드 추가</button>
         </Section>
       )}
 
@@ -414,53 +418,53 @@ function UploadContent() {
       {mode === 'chat' && (
         <Section title="대화 시나리오" desc="AI가 순서대로 물어볼 질문을 정의합니다">
           {questions.length === 0 && (
-            <p className="text-[13px] text-[#63636E] mb-3">아직 추가된 질문이 없습니다</p>
+            <p className="text-[13px] mb-3" style={{color:'var(--text-muted)'}}>아직 추가된 질문이 없습니다</p>
           )}
           {questions.map((q, i) => (
-            <div key={i} className="p-3 bg-[#111114] rounded-lg mb-2">
+            <div key={i} className="p-3 rounded-lg mb-2" style={{background:'var(--surface-input)'}}>
               <div className="flex gap-2 items-start">
-                <span className="text-[11px] text-[#63636E] w-5 text-center font-mono mt-2.5">{i + 1}</span>
+                <span className="text-[11px] w-5 text-center font-mono mt-2.5" style={{color:'var(--text-muted)'}}>{i + 1}</span>
                 <div className="flex-1">
                   <textarea value={q.question} onChange={e => updateQuestion(i, 'question', e.target.value)}
                     placeholder="AI가 물어볼 질문" rows={2} className="inp w-full mb-1.5" />
                   <input value={q.field} onChange={e => updateQuestion(i, 'field', e.target.value)}
                     placeholder="저장할 변수명 (영문)" className="inp w-40 text-[11px] font-mono" />
                 </div>
-                <button onClick={() => removeQuestion(i)} className="text-[#63636E] hover:text-[#EF5B5B] text-lg w-6 text-center mt-2">×</button>
+                <button onClick={() => removeQuestion(i)} className="text-lg w-6 text-center mt-2 hover:opacity-70" style={{color:'var(--text-muted)'}}>×</button>
               </div>
             </div>
           ))}
-          <button onClick={addQuestion} className="mt-2 text-[13px] text-[#00D4AA] hover:text-[#00E8BB] font-medium">+ 질문 추가</button>
+          <button onClick={addQuestion} className="mt-2 text-[13px] font-medium hover:opacity-80" style={{color:'var(--accent)'}}>+ 질문 추가</button>
         </Section>
       )}
 
       {/* ===== 가격 산정 ===== */}
-      <Section title="💰 가격 산정" desc="토큰 소비량을 예측하고 판매 가격을 설정합니다">
+      <Section title="가격 산정" desc="토큰 소비량을 예측하고 판매 가격을 설정합니다">
         {pricing && (
-          <div className="bg-[#111114] rounded-lg p-5 mb-4">
+          <div className="rounded-lg p-5 mb-4" style={{background:'var(--surface-input)'}}>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <div>
-                <div className="text-[11px] text-[#63636E] uppercase tracking-wider mb-1">AI 모델</div>
+                <div className="text-[11px] uppercase tracking-wider mb-1" style={{color:'var(--text-muted)'}}>AI 모델</div>
                 <div className="text-[15px] font-semibold">{MODEL_PRICING[aiModel].label}</div>
               </div>
               <div>
-                <div className="text-[11px] text-[#63636E] uppercase tracking-wider mb-1">예상 토큰</div>
+                <div className="text-[11px] uppercase tracking-wider mb-1" style={{color:'var(--text-muted)'}}>예상 토큰</div>
                 <div className="text-[15px] font-semibold">
                   입력 ~{pricing.inputTokens.toLocaleString()} + 출력 ~{pricing.outputTokens.toLocaleString()}
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-[#63636E] uppercase tracking-wider mb-1">원가</div>
+                <div className="text-[11px] uppercase tracking-wider mb-1" style={{color:'var(--text-muted)'}}>원가</div>
                 <div className="text-[15px] font-semibold">
                   ₩{Math.round(pricing.totalKRW).toLocaleString()}
-                  <span className="text-[12px] text-[#63636E] ml-1">(${pricing.totalUSD.toFixed(4)})</span>
+                  <span className="text-[12px] ml-1" style={{color:'var(--text-muted)'}}>(${pricing.totalUSD.toFixed(4)})</span>
                 </div>
               </div>
               <div>
-                <div className="text-[11px] text-[#63636E] uppercase tracking-wider mb-1">추천 가격 (마진 {Math.round(pricing.margin)}%)</div>
-                <div className="text-[15px] font-semibold text-[#00D4AA]">
+                <div className="text-[11px] uppercase tracking-wider mb-1" style={{color:'var(--text-muted)'}}>추천 가격 (마진 {Math.round(pricing.margin)}%)</div>
+                <div className="text-[15px] font-semibold" style={{color:'var(--accent)'}}>
                   ◆ {pricing.credits} 크레딧
-                  <span className="text-[12px] text-[#63636E] ml-1">(₩{pricing.sellingPrice.toLocaleString()})</span>
+                  <span className="text-[12px] ml-1" style={{color:'var(--text-muted)'}}>(₩{pricing.sellingPrice.toLocaleString()})</span>
                 </div>
               </div>
             </div>
@@ -468,16 +472,16 @@ function UploadContent() {
         )}
         <div className="flex items-center gap-4">
           <div>
-            <div className="text-[11px] text-[#63636E] uppercase tracking-wider mb-1.5">크레딧 설정</div>
+            <div className="text-[11px] uppercase tracking-wider mb-1.5" style={{color:'var(--text-muted)'}}>크레딧 설정</div>
             <div className="flex items-center gap-2">
               <input type="number" value={creditCost} onChange={e => setCreditCost(Number(e.target.value))} min={1}
                 className="inp w-20 text-center text-lg font-bold" />
-              <span className="text-[14px] text-[#63636E]">◆</span>
+              <span className="text-[14px]" style={{color:'var(--text-muted)'}}>◆</span>
             </div>
           </div>
           {pricing && (
             <button onClick={() => setCreditCost(pricing.credits)}
-              className="mt-5 text-[12px] text-[#00D4AA] hover:text-[#00E8BB] font-medium hover:underline">
+              className="mt-5 text-[12px] font-medium hover:underline" style={{color:'var(--accent)'}}>
               → 자동 추천 적용 (◆{pricing.credits})
             </button>
           )}
@@ -500,16 +504,16 @@ function UploadContent() {
       )}
 
       {/* ===== 하단 액션 ===== */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#09090B]/90 backdrop-blur-lg border-t border-white/[.06] z-40">
+      <div className="fixed bottom-0 left-0 right-0 backdrop-blur-lg z-40 border-t" style={{background:'var(--bg)',borderColor:'var(--border)'}}>
         <div className="max-w-[860px] mx-auto px-5 py-3 flex justify-between items-center">
-          <button onClick={() => router.push('/admin')} className="text-[13px] text-[#63636E] hover:text-[#A1A1AA]">취소</button>
+          <button onClick={() => router.push('/admin')} className="text-[13px]" style={{color:'var(--text-muted)'}}>취소</button>
           <div className="flex gap-2">
             <button onClick={() => handleSave('draft')} disabled={saving}
-              className="px-5 py-2.5 border border-white/10 rounded-lg text-[13px] font-medium text-[#A1A1AA] hover:bg-white/[.03] disabled:opacity-50">
+              className="px-5 py-2.5 border rounded-lg text-[13px] font-medium hover:opacity-80 disabled:opacity-50" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               {saving ? '저장 중...' : '임시저장'}
             </button>
             <button onClick={() => handleSave('active')} disabled={saving}
-              className="px-6 py-2.5 bg-[#00D4AA] text-[#09090B] rounded-lg text-[13px] font-semibold hover:bg-[#00E8BB] disabled:opacity-50">
+              className="px-6 py-2.5 rounded-lg text-[13px] font-semibold hover:opacity-90 disabled:opacity-50" style={{background:'var(--accent)',color:'var(--bg)'}}>
               {saving ? '저장 중...' : editId ? '저장 및 배포' : '생성 및 배포'}
             </button>
           </div>
@@ -518,7 +522,7 @@ function UploadContent() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#232328] text-white px-5 py-2.5 rounded-lg text-[13px] font-medium border border-white/10 z-50 animate-in">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-lg text-[13px] font-medium border z-50 animate-in" style={{background:'var(--surface)',color:'var(--text)',borderColor:'var(--border-strong)'}}>
           {toast}
         </div>
       )}
@@ -530,10 +534,10 @@ function UploadContent() {
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-[#141417] border border-white/[.06] rounded-xl p-6 mb-4">
-      <div className="mb-4 pb-3 border-b border-white/[.06]">
+    <div className="rounded-xl p-6 mb-4 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+      <div className="mb-4 pb-3 border-b" style={{borderColor:'var(--border)'}}>
         <h3 className="text-[15px] font-semibold">{title}</h3>
-        {desc && <p className="text-[11.5px] text-[#63636E] mt-0.5">{desc}</p>}
+        {desc && <p className="text-[11.5px] mt-0.5" style={{color:'var(--text-muted)'}}>{desc}</p>}
       </div>
       {children}
     </div>
@@ -543,8 +547,8 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 function Field({ label, desc, width, children }: { label: string; desc?: string; width?: string; children: React.ReactNode }) {
   return (
     <div className={`mb-3 ${width || ''}`}>
-      <label className="block text-[11.5px] font-medium text-[#A1A1AA] mb-1.5">{label}</label>
-      {desc && <p className="text-[10.5px] text-[#63636E] mb-1.5">{desc}</p>}
+      <label className="block text-[11.5px] font-medium mb-1.5" style={{color:'var(--text-secondary)'}}>{label}</label>
+      {desc && <p className="text-[10.5px] mb-1.5" style={{color:'var(--text-muted)'}}>{desc}</p>}
       {children}
     </div>
   )
@@ -555,5 +559,5 @@ function Row({ children }: { children: React.ReactNode }) {
 }
 
 export default function UploadPage() {
-  return <Suspense fallback={<div className="pt-20 text-center text-[#63636E]">로딩 중...</div>}><UploadContent /></Suspense>
+  return <Suspense fallback={<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>}><UploadContent /></Suspense>
 }

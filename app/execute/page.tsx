@@ -5,8 +5,6 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
 const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화'}
-const MC:Record<string,string>={oneclick:'bg-[rgba(0,212,170,0.1)] text-[#00D4AA] border-[rgba(0,212,170,0.2)]',form:'bg-[rgba(91,141,239,0.1)] text-[#5B8DEF] border-[rgba(91,141,239,0.2)]',chat:'bg-[rgba(155,141,255,0.1)] text-[#9B8DFF] border-[rgba(155,141,255,0.2)]'}
-const MB:Record<string,string>={oneclick:'rgba(0,212,170,0.1)',form:'rgba(91,141,239,0.1)',chat:'rgba(155,141,255,0.1)'}
 
 // 프로필에서 자동 채워지는 필드
 const PROFILE_FIELDS = new Set(['business_name','representative','business_number','business_type','sector','item','service_desc','target_customer','track_record','address','phone','email'])
@@ -147,14 +145,17 @@ function Exec() {
     }catch(e){alert('생성 실패');setGen(false)}
   }
 
-  if(ld)return<div className="pt-20 text-center text-[#63636E]">로딩 중...</div>
-  if(!m)return<div className="pt-20 text-center text-[#63636E]">모듈을 찾을 수 없습니다</div>
+  if(ld)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
+  if(!m)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>모듈을 찾을 수 없습니다</div>
+
+  const modeStyle=(md:string)=>({background:`var(--mode-${md}-bg)`,color:`var(--mode-${md}-text)`,borderColor:`var(--mode-${md}-border)`})
+  const modeBg=(md:string)=>`var(--mode-${md}-bg)`
 
   const hasAutoFields=autoFields.length>0
   const isChat=mode==='chat'
   const showInputForm=!isChat&&hasAutoFields
 
-  const renderFormFields=(flds:any[])=>flds.map((f:any)=><div key={f.key} className="mb-3.5"><label className="block text-[11.5px] font-medium text-[#A1A1AA] mb-1.5">{f.label}{f.required&&<span className="text-[#EF5B5B]"> *</span>}</label>
+  const renderFormFields=(flds:any[])=>flds.map((f:any)=><div key={f.key} className="mb-3.5"><label className="block text-[11.5px] font-medium mb-1.5" style={{color:'var(--text-secondary)'}}>{f.label}{f.required&&<span style={{color:'var(--error-text)'}}> *</span>}</label>
     {f.type==='textarea'?<textarea value={fd[f.key]||''} onChange={e=>setFd({...fd,[f.key]:e.target.value})} placeholder={f.placeholder} className="inp min-h-[80px]"/>
     :f.type==='select'?<select value={fd[f.key]||''} onChange={e=>setFd({...fd,[f.key]:e.target.value})} className="inp"><option value="">선택</option>{(f.options||[]).map((o:string)=><option key={o}>{o}</option>)}</select>
     :<input value={fd[f.key]||''} onChange={e=>setFd({...fd,[f.key]:e.target.value})} placeholder={f.placeholder} className="inp"/>}
@@ -162,45 +163,45 @@ function Exec() {
 
   return(
     <div className="max-w-[680px] mx-auto pt-6 pb-16 animate-in">
-      <button onClick={()=>router.push('/market')} className="text-[12.5px] text-[#63636E] hover:text-[#A1A1AA] mb-3 inline-block">← 마켓</button>
-      <div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5 mb-3"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{background:MB[m.mode]}}>{m.icon||'📄'}</div><div className="flex-1"><div className="flex items-center gap-2 mb-0.5"><span className="text-[15px] font-bold">{m.name}</span><span className={`inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border ${MC[m.mode]}`}>{ML[m.mode]}</span></div><div className="text-[12px] text-[#63636E]">◆ {m.credit_cost} · {m.category}</div></div></div></div>
+      <button onClick={()=>router.push('/market')} className="text-[12.5px] hover:opacity-70 mb-3 inline-block" style={{color:'var(--text-muted)'}}>← 마켓</button>
+      <div className="rounded-[10px] p-5 mb-3 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{background:modeBg(m.mode)}}>{m.icon||'📄'}</div><div className="flex-1"><div className="flex items-center gap-2 mb-0.5"><span className="text-[15px] font-bold">{m.name}</span><span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border" style={modeStyle(m.mode)}>{ML[m.mode]}</span></div><div className="text-[12px]" style={{color:'var(--text-muted)'}}>◆ {m.credit_cost} · {m.category}</div></div></div></div>
 
-      {gen?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-10 text-center"><div className="spinner mx-auto mb-3.5"/><p className="text-[13.5px] font-medium">AI 에이전트 실행 중...</p><div className="mt-3.5 bg-[#18181B] rounded h-[3px] max-w-[280px] mx-auto overflow-hidden"><div className="h-full bg-[#00D4AA] rounded transition-all duration-500" style={{width:prog+'%'}}/></div></div>
+      {gen?<div className="rounded-[10px] p-10 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="spinner mx-auto mb-3.5"/><p className="text-[13.5px] font-medium">AI 에이전트 실행 중...</p><div className="mt-3.5 rounded h-[3px] max-w-[280px] mx-auto overflow-hidden" style={{background:'var(--surface-hover)'}}><div className="h-full rounded transition-all duration-500" style={{width:prog+'%',background:'var(--accent)'}}/></div></div>
 
-      :isChat?<div className="bg-[#141417] border border-white/[.06] rounded-[10px] overflow-hidden"><div className="flex flex-col h-[400px]">
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">{msgs.map((msg,i)=><div key={i} className={`max-w-[82%] px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed ${msg.type==='ai'?'bg-[#1C1C20] text-[#A1A1AA] rounded-bl-sm self-start':'bg-[#00D4AA] text-[#09090B] font-medium rounded-br-sm self-end'}`}>{msg.text}</div>)}</div>
-        <div className="p-2.5 border-t border-white/[.06] flex gap-1.5 bg-[#141417]"><input value={ci} onChange={e=>setCi(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendC()} placeholder="답변 입력..." className="flex-1 px-3 py-2 border border-white/10 rounded-[5px] text-[13px] bg-[#111114] text-white placeholder:text-[#3a3a42]"/><button onClick={sendC} className="px-3 py-2 bg-[#00D4AA] text-[#09090B] font-semibold text-[12px] rounded-md">전송</button></div>
+      :isChat?<div className="rounded-[10px] overflow-hidden border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="flex flex-col h-[400px]">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">{msgs.map((msg,i)=><div key={i} className={`max-w-[82%] px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed ${msg.type==='ai'?'rounded-bl-sm self-start':'font-medium rounded-br-sm self-end'}`} style={msg.type==='ai'?{background:'var(--surface-hover)',color:'var(--text-secondary)'}:{background:'var(--accent)',color:'var(--bg)'}}>{msg.text}</div>)}</div>
+        <div className="p-2.5 flex gap-1.5 border-t" style={{borderColor:'var(--border)',background:'var(--surface)'}}><input value={ci} onChange={e=>setCi(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendC()} placeholder="답변 입력..." className="flex-1 px-3 py-2 rounded-[5px] text-[13px] border" style={{background:'var(--surface-input)',borderColor:'var(--border-strong)',color:'var(--text)'}}/><button onClick={sendC} className="px-3 py-2 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>전송</button></div>
       </div></div>
 
       :showInputForm?<div className="space-y-3">
         {/* 사용자 입력 필드 (AI가 모르는 정보) */}
-        <div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
-          <p className="text-[13px] font-semibold text-white mb-1">입력 정보</p>
-          <p className="text-[11px] text-[#63636E] mb-4">아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
+        <div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+          <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>입력 정보</p>
+          <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
           {renderFormFields(autoFields)}
         </div>
 
         {/* 프로필 정보 (자동 채움, 수정 가능) */}
-        {profileFields.length>0&&<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-5">
+        {profileFields.length>0&&<div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <div className="flex items-center justify-between mb-3">
-            <div><p className="text-[13px] font-semibold text-white">내 사업자 정보</p><p className="text-[11px] text-[#63636E]">프로필에서 자동으로 채워졌습니다</p></div>
-            <button onClick={()=>setShowProfileEdit(!showProfileEdit)} className="text-[11px] text-[#63636E] hover:text-[#A1A1AA]">{showProfileEdit?'접기':'수정'}</button>
+            <div><p className="text-[13px] font-semibold" style={{color:'var(--text)'}}>내 사업자 정보</p><p className="text-[11px]" style={{color:'var(--text-muted)'}}>프로필에서 자동으로 채워졌습니다</p></div>
+            <button onClick={()=>setShowProfileEdit(!showProfileEdit)} className="text-[11px] hover:opacity-70" style={{color:'var(--text-muted)'}}>{showProfileEdit?'접기':'수정'}</button>
           </div>
-          {showProfileEdit?profileFields.map((pf,i)=><div key={pf.key} className="mb-2.5"><label className="block text-[11px] text-[#63636E] mb-1">{pf.label}</label><input value={pf.value} onChange={e=>{const nf=[...profileFields];nf[i]={...nf[i],value:e.target.value};setProfileFields(nf)}} className="inp text-[12.5px]"/></div>)
-          :<div className="flex flex-wrap gap-x-4 gap-y-1">{profileFields.filter(pf=>pf.value).map(pf=><span key={pf.key} className="text-[11px] text-[#63636E]">{pf.label}: <span className="text-[#A1A1AA]">{pf.value.length>20?pf.value.substring(0,20)+'...':pf.value}</span></span>)}</div>}
+          {showProfileEdit?profileFields.map((pf,i)=><div key={pf.key} className="mb-2.5"><label className="block text-[11px] mb-1" style={{color:'var(--text-muted)'}}>{pf.label}</label><input value={pf.value} onChange={e=>{const nf=[...profileFields];nf[i]={...nf[i],value:e.target.value};setProfileFields(nf)}} className="inp text-[12.5px]"/></div>)
+          :<div className="flex flex-wrap gap-x-4 gap-y-1">{profileFields.filter(pf=>pf.value).map(pf=><span key={pf.key} className="text-[11px]" style={{color:'var(--text-muted)'}}>{pf.label}: <span style={{color:'var(--text-secondary)'}}>{pf.value.length>20?pf.value.substring(0,20)+'...':pf.value}</span></span>)}</div>}
         </div>}
 
         {/* 실행 버튼 */}
         <div className="flex justify-between items-center">
-          {mode==='form'&&<button onClick={()=>{setMode('chat');if(m)initC(m)}} className="text-[12px] text-[#63636E]">💬 AI 상담 모드</button>}
+          {mode==='form'&&<button onClick={()=>{setMode('chat');if(m)initC(m)}} className="text-[12px]" style={{color:'var(--text-muted)'}}>💬 AI 상담 모드</button>}
           {mode==='oneclick'&&<div/>}
-          <button onClick={generate} className="px-5 py-2.5 bg-[#00D4AA] text-[#09090B] font-semibold text-[13px] rounded-md">{mode==='oneclick'?'⚡':''} 실행 · ◆{m.credit_cost}</button>
+          <button onClick={generate} className="px-5 py-2.5 font-semibold text-[13px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>{mode==='oneclick'?'⚡':''} 실행 · ◆{m.credit_cost}</button>
         </div>
       </div>
 
       /* oneclick + 입력 필드 없음 → 바로 실행 */
-      :<div className="bg-[#141417] border border-white/[.06] rounded-[10px] p-9 text-center"><p className="text-[13.5px] text-[#A1A1AA] mb-4">사업 정보 기반으로 즉시 실행합니다.</p><button onClick={generate} className="px-6 py-3 bg-[#00D4AA] text-[#09090B] font-semibold text-sm rounded-lg">⚡ 바로 실행</button><p className="text-[11px] text-[#63636E] mt-2.5">◆{m.credit_cost} 크레딧</p></div>}
+      :<div className="rounded-[10px] p-9 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-[13.5px] mb-4" style={{color:'var(--text-secondary)'}}>사업 정보 기반으로 즉시 실행합니다.</p><button onClick={generate} className="px-6 py-3 font-semibold text-sm rounded-lg" style={{background:'var(--accent)',color:'var(--bg)'}}>⚡ 바로 실행</button><p className="text-[11px] mt-2.5" style={{color:'var(--text-muted)'}}>◆{m.credit_cost} 크레딧</p></div>}
     </div>
   )
 }
-export default function ExecutePage(){return<Suspense fallback={<div className="pt-20 text-center text-[#63636E]">로딩 중...</div>}><Exec/></Suspense>}
+export default function ExecutePage(){return<Suspense fallback={<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>}><Exec/></Suspense>}

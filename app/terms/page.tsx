@@ -61,17 +61,17 @@ export default function TermsPage() {
   return (
     <div className="max-w-[760px] mx-auto pt-8 pb-20 animate-in">
       <h1 className="text-xl font-bold mb-1">서비스 이용약관</h1>
-      <p className="text-[12px] text-[#63636E] mb-6">주식회사 크리피솔루션즈 | 시행일: 2025.03.20</p>
+      <p className="text-[12px] mb-6" style={{color:'var(--text-muted)'}}>주식회사 크리피솔루션즈 | 시행일: 2025.03.20</p>
       <div className="space-y-3">
         {sections.map((s, i) => (
-          <div key={i} className="bg-[#141417] border border-white/[.06] rounded-xl p-6">
-            <h2 className="text-[15px] font-bold text-white mb-3">{s.title}</h2>
-            <p className="text-[13.5px] text-[#A1A1AA] leading-[1.9] whitespace-pre-line">{s.content}</p>
+          <div key={i} className="rounded-xl p-6 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <h2 className="text-[15px] font-bold mb-3" style={{color:'var(--text)'}}>{s.title}</h2>
+            <p className="text-[13.5px] leading-[1.9] whitespace-pre-line" style={{color:'var(--text-secondary)'}}>{s.content}</p>
           </div>
         ))}
       </div>
       <div className="mt-6 text-center">
-        <Link href="/privacy" className="text-[12px] text-[#63636E] hover:text-[#A1A1AA]">개인정보처리방침 →</Link>
+        <Link href="/privacy" className="text-[12px] hover:opacity-70" style={{color:'var(--text-muted)'}}>개인정보처리방침 →</Link>
       </div>
     </div>
   )
