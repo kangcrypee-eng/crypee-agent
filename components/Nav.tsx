@@ -7,7 +7,7 @@ import { useTheme } from './ThemeProvider'
 export default function Nav() {
   const path = usePathname()
   const router = useRouter()
-  const { user, isAdmin, credits, signOut } = useAuth()
+  const { user, isAdmin, signOut } = useAuth()
   const { theme, toggle } = useTheme()
 
   const logout = async () => { await signOut(); router.push('/'); router.refresh() }
@@ -29,7 +29,6 @@ export default function Nav() {
         </button>
         {user ? (
           <div className="flex items-center gap-2">
-            <Link href="/credits" className="flex items-center gap-1.5 px-3 py-1 rounded-2xl text-xs font-semibold" style={{background:'var(--accent-bg)',border:'1px solid var(--accent-border)',color:'var(--accent)'}}>◆ {credits}</Link>
             <Link href="/profile" className="w-[30px] h-[30px] rounded-full border flex items-center justify-center text-[11px] font-bold" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               {(user.representative||user.business_name||user.email||'U')[0].toUpperCase()}
             </Link>

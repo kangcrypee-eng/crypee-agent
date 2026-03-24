@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { categories } from '@/lib/modules'
 
-const ML:Record<string,string> = {oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화'}
+const ML:Record<string,string> = {oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림'}
 
 const render=(t:string)=>t.replace(/^### (.+)$/gm,'<h3 style="font-size:13px;font-weight:600;color:#333;margin:10px 0 4px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="font-size:15px;font-weight:600;color:#222;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8e8e8">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px">$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin-bottom:8px">').replace(/\n/g,'<br>')
 
@@ -28,7 +28,7 @@ export default function MarketPage() {
         <div key={m.id} onClick={()=>setSelected(m)} className="rounded-[10px] p-4 cursor-pointer border transition-all hover:opacity-90 relative" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <div className="absolute top-3 right-3"><span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border" style={modeStyle(m.mode)}>{ML[m.mode]||m.mode}</span></div>
           <div className="flex items-start gap-2.5 mb-2"><div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{background:modeBg(m.mode)}}>{m.icon||'📄'}</div><div><div className="text-[13.5px] font-semibold mb-0.5 pr-16">{m.name}</div><div className="text-[11.5px] leading-relaxed" style={{color:'var(--text-muted)'}}>{m.description}</div></div></div>
-          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span>◆ {m.credit_cost}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
+          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span style={{color:'var(--accent)',fontWeight:600}}>{(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}`}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
         </div>
       )}</div>}
 
@@ -47,7 +47,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex items-center gap-3 mb-4 text-[12px]" style={{color:'var(--text-muted)'}}>
-              <span>◆ {selected.credit_cost} 크레딧</span>
+              <span>{(selected.price_krw||0)===0?'무료':`₩${(selected.price_krw||0).toLocaleString()}`}</span>
               <span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/>
               <span>{selected.category}</span>
               <span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/>
@@ -73,7 +73,7 @@ export default function MarketPage() {
             {!selected.sample_output&&<div className="mb-4 py-6 text-center rounded-lg border border-dashed" style={{borderColor:'var(--border-strong)'}}><p className="text-[12px]" style={{color:'var(--text-muted)'}}>예시 결과물이 아직 준비되지 않았습니다</p></div>}
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push('/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>실행하기 · ◆{selected.credit_cost}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push('/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>

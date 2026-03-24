@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
 function Pv() {
-  const params=useSearchParams();const router=useRouter();const{user,credits,setCredits}=useAuth()
+  const params=useSearchParams();const router=useRouter();const{user}=useAuth()
   const id=params.get('id')||''
   const[m,setM]=useState<any>(null);const[result,setResult]=useState('');const[chains,setChains]=useState<any[]>([]);const[fmt,setFmt]=useState('pdf');const[ld,setLd]=useState(true)
   const[editing,setEditing]=useState(false);const[editText,setEditText]=useState('');const[saving,setSaving]=useState(false)
@@ -36,8 +36,8 @@ function Pv() {
   const handleRegen=async()=>{
     if(!m||!user)return
     const isFree=regenCount===0
-    if(!isFree&&credits<m.credit_cost){if(confirm('크레딧이 부족합니다. 충전 페이지로 이동할까요?'))router.push('/credits');return}
-    if(!isFree&&!confirm(`재생성에 ◆${m.credit_cost} 크레딧이 차감됩니다. 계속할까요?`))return
+    const price=m.price_krw||0
+    if(!isFree&&price>0&&!confirm(`재생성에 ₩${price.toLocaleString()}이 결제됩니다. 계속할까요?`))return
 
     setRegenerating(true)
     for(let i=0;i<4;i++){setRegenProg((i+1)*25);await new Promise(r=>setTimeout(r,600))}
@@ -60,14 +60,9 @@ function Pv() {
         await supabase.from('generations').update({output_text:data.result,regen_count:regenCount+1,input_tokens:data.usage?.input_tokens,output_tokens:data.usage?.output_tokens,generation_time_ms:data.usage?.generation_time_ms}).eq('id',genId)
       }
 
-      // 크레딧 차감 (무료가 아닌 경우)
-      if(!isFree){
-        const nc=credits-m.credit_cost
-        await supabase.from('profiles').update({credits:nc}).eq('id',user.id)
-        setCredits(nc)
-        await supabase.from('credit_transactions').insert({user_id:user.id,amount:-m.credit_cost,type:'use',description:`${m.name} 재생성`,module_id:m.id})
-      } else {
-        await supabase.from('credit_transactions').insert({user_id:user.id,amount:0,type:'free_regen',description:`${m.name} 무료 재생성`,module_id:m.id})
+      // 유료 재생성인 경우 결제 기록
+      if(!isFree&&(m.price_krw||0)>0){
+        await supabase.from('payments').insert({user_id:user.id,module_id:m.id,order_id:`regen-${user.id.substring(0,8)}-${Date.now()}`,amount:m.price_krw,status:'paid',paid_at:new Date().toISOString()})
       }
 
       setResult(data.result);sessionStorage.setItem('lastResult',data.result)
@@ -88,7 +83,7 @@ function Pv() {
     <div className="max-w-[760px] mx-auto pt-6 pb-16 animate-in">
       <button onClick={()=>router.push('/market')} className="text-[12.5px] hover:opacity-70 mb-3 inline-block" style={{color:'var(--text-muted)'}}>← 마켓</button>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <div><h2 className="text-[17px] font-bold">{m.icon} {m.name}</h2><p className="text-[12px]" style={{color:'var(--text-muted)'}}>{m.category} · ◆{m.credit_cost}</p></div>
+        <div><h2 className="text-[17px] font-bold">{m.icon} {m.name}</h2><p className="text-[12px]" style={{color:'var(--text-muted)'}}>{m.category}</p></div>
         <div className="flex gap-1.5 flex-wrap">
           <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{(m.output_formats||['pdf']).map((f:string)=><option key={f}>{f.toUpperCase()}</option>)}</select>
           <button onClick={dl} className="px-3 py-1.5 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>다운로드</button>
@@ -96,7 +91,7 @@ function Pv() {
           :<><button onClick={saveEdit} disabled={saving} className="px-3 py-1.5 font-semibold text-[12px] rounded-md disabled:opacity-50" style={{background:'#5B8DEF',color:'white'}}>{saving?'저장 중...':'수정 완료'}</button>
           <button onClick={cancelEdit} className="px-3 py-1.5 rounded-md text-[12px] border" style={{borderColor:'var(--border-strong)',color:'var(--text-muted)'}}>취소</button></>}
           <button onClick={handleRegen} disabled={regenerating} className="px-3 py-1.5 border rounded-md text-[12px] disabled:opacity-50 hover:opacity-80" style={isFreeRegen?{borderColor:'var(--accent-border)',color:'var(--accent)'}:{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
-            {regenerating?'생성 중...':isFreeRegen?'🔄 재생성 (1회 무료)':`🔄 재생성 · ◆${m.credit_cost}`}
+            {regenerating?'생성 중...':isFreeRegen?'🔄 재생성 (1회 무료)':`🔄 재생성 · ₩${(m.price_krw||0).toLocaleString()}`}
           </button>
         </div>
       </div>
