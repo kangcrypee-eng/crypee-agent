@@ -30,9 +30,10 @@ export default function Footer() {
         </div>
         <div className="border-t pt-6" style={{borderColor:'var(--border)'}}>
           <div className="text-[11px] leading-[1.8] space-y-0.5" style={{color:'var(--text-muted)'}}>
-            <p>주식회사 크리피솔루션즈 (Crypee Solutions Corp.) | 대표이사: 민동선</p>
-            <p>사업자등록번호: 173-87-02739 | 통신판매업: 제 2025-서울강남-04382호</p>
-            <p>주소: 서울특별시 강남구 테헤란로 431, 에스7018호(삼성동, 저스트코타워)</p>
+            <p>주식회사 크리피솔루션즈 (Crypee Solutions Corp.) | 대표: 민동선</p>
+            <p>사업자등록번호: 173-87-02739 | 통신판매업: 제 2025-서울강남-04832호</p>
+            <p>주소: 서울특별시 강남구 테헤란로 431, 에스7018호 (삼성동, 저스트코타워)</p>
+            <p>전화: 010-5077-2773</p>
             <p>이메일: contact@crypee.io</p>
             <p className="mt-3 opacity-50">© 2025 Crypee Solutions Corp. All rights reserved.</p>
           </div>
