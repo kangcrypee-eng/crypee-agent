@@ -92,7 +92,7 @@ function SetupContent() {
   // 토스 빌링키 등록
   const startBillingAuth = async (subscriptionId: string) => {
     if (!user) return
-    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CK
     if (!clientKey || clientKey === 'test_ck_xxx') {
       // 토스 미설정 → 무료로 활성화
       await supabase.from('alert_subscriptions').update({ is_active: true, billing_status: 'active' }).eq('id', subscriptionId)
