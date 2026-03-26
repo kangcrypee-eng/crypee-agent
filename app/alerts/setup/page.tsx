@@ -39,6 +39,8 @@ function SetupContent() {
 
   useEffect(() => {
     if (!user) { router.push('/login'); return }
+    // 이메일 기본값
+    if (user.email && !phone) setPhone(user.email)
     // 기존 설정 로드
     supabase.from('alert_subscriptions').select('*').eq('user_id', user.id).eq('module_type', 'gov_support').single().then(({ data }) => {
       if (data) {
@@ -122,12 +124,12 @@ function SetupContent() {
       <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <p className="text-[13px] font-semibold mb-4">알림 설정</p>
         <div className="mb-4">
-          <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>카카오톡 수신 번호</label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01012345678" className="inp" />
-          <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>카카오톡에 등록된 전화번호 (- 없이 숫자만)</p>
+          <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>알림 수신 이메일</label>
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder={user?.email || 'email@example.com'} className="inp" />
+          <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>공고 알림을 받을 이메일 주소</p>
         </div>
         <p className="text-[11px] p-3 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있으면 카카오톡으로 알림을 보내드립니다. (카카오 알림톡 연동 준비 중 — 현재는 앱 내 알림 기록만 제공)
+          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있으면 이메일로 알림을 보내드립니다. (카카오 알림톡은 도메인 연결 후 지원 예정)
         </p>
       </div>
 
