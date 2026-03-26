@@ -2,9 +2,11 @@
   "functions": {
     "app/api/generate/route.ts": { "maxDuration": 60 },
     "app/api/payment/success/route.ts": { "maxDuration": 60 },
-    "app/api/alerts/check/route.ts": { "maxDuration": 60 }
+    "app/api/alerts/check/route.ts": { "maxDuration": 60 },
+    "app/api/billing/charge/route.ts": { "maxDuration": 60 }
   },
   "crons": [
-    { "path": "/api/alerts/check", "schedule": "0 9 * * *" }
+    { "path": "/api/alerts/check", "schedule": "0 0 * * *" },
+    { "path": "/api/billing/charge", "schedule": "0 1 * * *" }
   ]
 }

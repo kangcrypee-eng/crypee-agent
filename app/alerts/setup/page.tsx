@@ -24,7 +24,6 @@ function SetupContent() {
   const router = useRouter()
   const params = useSearchParams()
   const { user } = useAuth()
-  // 복수 선택 가능한 필터
   const [fields, setFields] = useState<string[]>([])
   const [regions, setRegions] = useState<string[]>([])
   const [statuses, setStatuses] = useState<string[]>(['접수중'])
@@ -52,6 +51,7 @@ function SetupContent() {
     set(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val])
   }
 
+  // 1단계: 필터 저장
   const handleSave = async () => {
     if (!user) return
     if (!email.trim()) { setMsg('이메일을 입력해주세요'); return }
@@ -68,11 +68,56 @@ function SetupContent() {
       })
       const data = await res.json()
       if (data.success) {
-        setMsg(existing ? '알림 설정이 업데이트되었습니다!' : '알림이 설정되었습니다!')
-        setTimeout(() => router.push('/alerts'), 1500)
+        // 2단계: 결제 (기존 빌링키 없으면 카드 등록)
+        if (existing?.billing_status === 'active') {
+          setMsg('알림 설정이 업데이트되었습니다!')
+          setTimeout(() => router.push('/alerts'), 1500)
+        } else {
+          // 토스 빌링키 등록
+          await startBillingAuth(data.id || existing?.id)
+        }
       } else setMsg(data.error || '오류가 발생했습니다')
     } catch { setMsg('오류가 발생했습니다') }
     setSaving(false)
+  }
+
+  // 토스 빌링키 등록 (카드 등록)
+  const startBillingAuth = async (subscriptionId: string) => {
+    if (!user) return
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY
+    if (!clientKey || clientKey === 'test_ck_xxx') {
+      setMsg('결제 시스템이 아직 설정되지 않았습니다. 무료로 이용 가능합니다.')
+      setTimeout(() => router.push('/alerts'), 1500)
+      return
+    }
+    try {
+      const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk')
+      const tossPayments = await loadTossPayments(clientKey)
+      const payment = tossPayments.payment({ customerKey: user.id })
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      await payment.requestBillingAuth({
+        method: 'CARD',
+        successUrl: `${appUrl}/api/billing/success?subscriptionId=${subscriptionId}`,
+        failUrl: `${appUrl}/api/payment/fail`,
+      })
+    } catch (e: any) {
+      if (e?.code !== 'USER_CANCEL') setMsg('카드 등록 오류: ' + (e?.message || ''))
+    }
+  }
+
+  // 구독 해지
+  const handleCancel = async () => {
+    if (!user || !existing) return
+    if (!confirm('정기결제를 해지하시겠습니까? 남은 기간까지는 알림을 받으실 수 있습니다.')) return
+    try {
+      const res = await fetch('/api/billing/cancel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: existing.id, userId: user.id }),
+      })
+      const data = await res.json()
+      setMsg(data.message || '해지되었습니다')
+      setTimeout(() => router.push('/alerts'), 1500)
+    } catch { setMsg('해지 실패') }
   }
 
   const MultiSelect = ({ label, options, selected, onToggle }: { label: string; options: Array<{ label: string; code: string }>; selected: string[]; onToggle: (v: string) => void }) => (
@@ -96,13 +141,24 @@ function SetupContent() {
     </div>
   )
 
+  const isSubscribed = existing?.billing_status === 'active'
+
   return (
     <div className="max-w-[600px] mx-auto pt-6 pb-16 animate-in">
       <button onClick={() => router.push('/market')} className="text-[12.5px] hover:opacity-70 mb-3 inline-block" style={{ color: 'var(--text-muted)' }}>← 마켓</button>
       <h2 className="text-lg font-bold mb-1">🔔 정부지원사업 공고 알림</h2>
       <p className="text-[12px] mb-6" style={{ color: 'var(--text-muted)' }}>기업마당(bizinfo.go.kr) 공고를 매일 체크하여 조건에 맞는 공고를 이메일로 알려드립니다.</p>
 
-      {existing && <div className="mb-4 p-3 rounded-lg text-[12px]" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>기존 알림 설정이 있습니다. 수정하시면 기존 설정이 업데이트됩니다.</div>}
+      {/* 구독 상태 배너 */}
+      {isSubscribed && <div className="mb-4 p-4 rounded-xl border flex items-center justify-between" style={{ background: 'var(--accent-bg)', borderColor: 'var(--accent-border)' }}>
+        <div>
+          <p className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>구독 중 · ₩990/월</p>
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{existing.card_company} {existing.card_number} · 다음 결제: {existing.next_billing_at ? new Date(existing.next_billing_at).toLocaleDateString('ko') : '-'}</p>
+        </div>
+        <button onClick={handleCancel} className="px-3 py-1.5 rounded-md text-[11px] border hover:opacity-80" style={{ borderColor: 'var(--error-border)', color: 'var(--error-text)' }}>해지</button>
+      </div>}
+
+      {existing && !isSubscribed && existing.billing_status === 'cancelled' && <div className="mb-4 p-3 rounded-lg text-[12px]" style={{ background: 'var(--error-bg)', color: 'var(--error-text)' }}>구독이 해지되었습니다. 다시 구독하려면 아래에서 설정 후 결제해주세요.</div>}
 
       <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <p className="text-[13px] font-semibold mb-1">공고 필터</p>
@@ -113,7 +169,6 @@ function SetupContent() {
         <div className="mb-2">
           <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>키워드 (선택)</label>
           <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="예: AI, 디지털전환, 스마트공장" className="inp" />
-          <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>기업마당 해시태그 기준으로 검색됩니다</p>
         </div>
       </div>
 
@@ -121,20 +176,20 @@ function SetupContent() {
         <p className="text-[13px] font-semibold mb-3">알림 수신</p>
         <div className="mb-4">
           <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>알림 수신 이메일</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} placeholder={user?.email || 'example@email.com'} className="inp" />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="example@email.com" className="inp" />
           <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>공고 알림을 받을 이메일 주소를 입력해주세요</p>
         </div>
         <p className="text-[11px] p-3 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있을 때만 이메일을 보내드립니다. 공고가 없으면 이메일이 발송되지 않습니다.
+          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있을 때만 이메일을 보내드립니다.
         </p>
       </div>
 
       {msg && <div className="mb-3 p-3 rounded-lg text-[12px] text-center" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>{msg}</div>}
 
       <button onClick={handleSave} disabled={saving || !email.trim()} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
-        {saving ? '저장 중...' : existing ? '알림 설정 업데이트' : '알림 설정하기'}
+        {saving ? '처리 중...' : isSubscribed ? '필터 설정 업데이트' : '구독하기 · ₩990/월'}
       </button>
-      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>₩990/월 · 매칭 공고가 있을 때만 발송</p>
+      {!isSubscribed && <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>카드 등록 후 첫 결제 ₩990 · 매월 자동 결제 · 언제든 해지 가능</p>}
     </div>
   )
 }

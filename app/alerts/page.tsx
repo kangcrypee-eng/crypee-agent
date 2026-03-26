@@ -33,8 +33,11 @@ export default function AlertsPage() {
             <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={sub.is_active ? {background:'var(--accent-bg)',color:'var(--accent)'} : {background:'var(--error-bg)',color:'var(--error-text)'}}>{sub.is_active ? '활성' : '비활성'}</span>
           </div>
           <div className="space-y-1 text-[12px]" style={{color:'var(--text-secondary)'}}>
-            <p>주기: {sub.schedule_type === 'daily' ? '매일' : '매주'} {sub.schedule_hour}시</p>
-            <p>전화번호: {sub.phone}</p>
+            <p>주기: 매일 오전 9시</p>
+            <p>수신: {sub.phone}</p>
+            {sub.billing_status==='active'&&<p style={{color:'var(--accent)'}}>구독 중 · ₩990/월 {sub.card_company&&`· ${sub.card_company} ${sub.card_number}`}</p>}
+            {sub.billing_status==='cancelled'&&<p style={{color:'var(--error-text)'}}>구독 해지됨</p>}
+            {sub.billing_status==='failed'&&<p style={{color:'var(--error-text)'}}>결제 실패 — 카드를 다시 등록해주세요</p>}
             {sub.filters?.keyword && <p>키워드: {sub.filters.keyword}</p>}
             {sub.last_sent_at && <p>마지막 발송: {new Date(sub.last_sent_at).toLocaleString('ko')}</p>}
           </div>

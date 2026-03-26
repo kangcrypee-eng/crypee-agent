@@ -68,9 +68,16 @@ ALTER TABLE alert_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users own alert subs" ON alert_subscriptions FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users own alert logs" ON alert_logs FOR ALL USING (auth.uid() = user_id);
 
--- 4. 기존 컬럼 (이전에 추가한 것들 — IF NOT EXISTS로 안전)
+-- 4. 기존 컬럼
 ALTER TABLE modules ADD COLUMN IF NOT EXISTS sample_output TEXT;
 ALTER TABLE generations ADD COLUMN IF NOT EXISTS regen_count INTEGER DEFAULT 0;
+
+-- 4.5. 정기결제 컬럼 추가 (alert_subscriptions)
+ALTER TABLE alert_subscriptions ADD COLUMN IF NOT EXISTS billing_key TEXT;
+ALTER TABLE alert_subscriptions ADD COLUMN IF NOT EXISTS card_company TEXT;
+ALTER TABLE alert_subscriptions ADD COLUMN IF NOT EXISTS card_number TEXT;
+ALTER TABLE alert_subscriptions ADD COLUMN IF NOT EXISTS next_billing_at TIMESTAMPTZ;
+ALTER TABLE alert_subscriptions ADD COLUMN IF NOT EXISTS billing_status TEXT DEFAULT 'none' CHECK (billing_status IN ('none', 'active', 'failed', 'cancelled'));
 
 -- 5. 정부지원사업 공고 알림 모듈 등록
 INSERT INTO modules (id, name, description, category, icon, tags, mode, output_mode, ai_model, max_tokens, temperature, system_prompt, user_prompt_template, credit_cost, price_krw, status, uses)
