@@ -63,7 +63,7 @@ export async function GET() {
         params.set('hashtags', filters.keyword)
       }
 
-      const res = await fetch(`https://www.bizinfo.go.kr/uss/rss/bizInfoApi.do?${params}`)
+      const res = await fetch(`https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?${params}`)
       const text = await res.text()
 
       let items: any[] = []
