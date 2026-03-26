@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
-// 기업마당 API 코드 기반
 const FIELDS = [
   { label: '기술', code: '01' }, { label: '인력', code: '02' },
   { label: '수출', code: '03' }, { label: '내수', code: '04' },
@@ -25,52 +24,46 @@ function SetupContent() {
   const router = useRouter()
   const params = useSearchParams()
   const { user } = useAuth()
-  const [field, setField] = useState('')
-  const [region, setRegion] = useState('')
-  const [status, setStatus] = useState('접수중')
+  // 복수 선택 가능한 필터
+  const [fields, setFields] = useState<string[]>([])
+  const [regions, setRegions] = useState<string[]>([])
+  const [statuses, setStatuses] = useState<string[]>(['접수중'])
   const [keyword, setKeyword] = useState('')
-  const [scheduleType, setScheduleType] = useState<'daily' | 'weekly'>('daily')
-  const [scheduleHour, setScheduleHour] = useState(9)
-  const [scheduleDay, setScheduleDay] = useState(1)
-  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [existing, setExisting] = useState<any>(null)
 
   useEffect(() => {
     if (!user) { router.push('/login'); return }
-    // 이메일 기본값
-    if (user.email && !phone) setPhone(user.email)
-    // 기존 설정 로드
     supabase.from('alert_subscriptions').select('*').eq('user_id', user.id).eq('module_type', 'gov_support').single().then(({ data }) => {
       if (data) {
         setExisting(data)
-        setField(data.filters?.field || '')
-        setRegion(data.filters?.region || '')
-        setStatus(data.filters?.status || '접수중')
+        setFields(data.filters?.fields || [])
+        setRegions(data.filters?.regions || [])
+        setStatuses(data.filters?.statuses || ['접수중'])
         setKeyword(data.filters?.keyword || '')
-        setScheduleType(data.schedule_type || 'daily')
-        setScheduleHour(data.schedule_hour || 9)
-        setScheduleDay(data.schedule_day || 1)
-        setPhone(data.phone || '')
+        setEmail(data.phone || '')
       }
     })
   }, [user])
 
+  const toggleArr = (arr: string[], val: string, set: (v: string[]) => void) => {
+    set(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val])
+  }
+
   const handleSave = async () => {
     if (!user) return
-    if (!phone.trim()) { setMsg('전화번호를 입력해주세요'); return }
+    if (!email.trim()) { setMsg('이메일을 입력해주세요'); return }
     setSaving(true)
     try {
       const res = await fetch('/api/alerts/subscribe', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          filters: { field, region, status, keyword },
-          scheduleType,
-          scheduleHour,
-          scheduleDay: scheduleType === 'weekly' ? scheduleDay : null,
-          phone: phone.trim(),
+          filters: { fields, regions, statuses, keyword },
+          scheduleType: 'daily', scheduleHour: 9, scheduleDay: null,
+          phone: email.trim(),
         }),
       })
       const data = await res.json()
@@ -82,21 +75,23 @@ function SetupContent() {
     setSaving(false)
   }
 
-  const SelectGroup = ({ label, options, value, onChange }: { label: string; options: Array<{ label: string; code: string }>; value: string; onChange: (v: string) => void }) => (
+  const MultiSelect = ({ label, options, selected, onToggle }: { label: string; options: Array<{ label: string; code: string }>; selected: string[]; onToggle: (v: string) => void }) => (
     <div className="mb-4">
-      <label className="block text-[12px] font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{label}</label>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[12px] font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</label>
+        {selected.length > 0 && <span className="text-[10px]" style={{ color: 'var(--accent)' }}>{selected.length}개 선택</span>}
+      </div>
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={() => onChange('')} className="px-3 py-1.5 rounded-lg text-[12px] border transition-all" style={!value ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>전체</button>
-        {options.map(o => <button key={o.code} onClick={() => onChange(o.label === value ? '' : o.label)} className="px-3 py-1.5 rounded-lg text-[12px] border transition-all" style={o.label === value ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{o.label}</button>)}
+        {options.map(o => <button key={o.code} onClick={() => onToggle(o.label)} className="px-3 py-1.5 rounded-lg text-[12px] border transition-all" style={selected.includes(o.label) ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{o.label}</button>)}
       </div>
     </div>
   )
 
-  const SimpleSelectGroup = ({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) => (
+  const MultiSelectSimple = ({ label, options, selected, onToggle }: { label: string; options: string[]; selected: string[]; onToggle: (v: string) => void }) => (
     <div className="mb-4">
       <label className="block text-[12px] font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{label}</label>
       <div className="flex flex-wrap gap-1.5">
-        {options.map(o => <button key={o} onClick={() => onChange(o === value ? '' : o)} className="px-3 py-1.5 rounded-lg text-[12px] border transition-all" style={o === value ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{o}</button>)}
+        {options.map(o => <button key={o} onClick={() => onToggle(o)} className="px-3 py-1.5 rounded-lg text-[12px] border transition-all" style={selected.includes(o) ? { background: 'var(--accent-bg)', color: 'var(--accent)', borderColor: 'var(--accent-border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>{o}</button>)}
       </div>
     </div>
   )
@@ -105,15 +100,16 @@ function SetupContent() {
     <div className="max-w-[600px] mx-auto pt-6 pb-16 animate-in">
       <button onClick={() => router.push('/market')} className="text-[12.5px] hover:opacity-70 mb-3 inline-block" style={{ color: 'var(--text-muted)' }}>← 마켓</button>
       <h2 className="text-lg font-bold mb-1">🔔 정부지원사업 공고 알림</h2>
-      <p className="text-[12px] mb-6" style={{ color: 'var(--text-muted)' }}>기업마당(bizinfo.go.kr) 공고를 매일 체크하여 조건에 맞는 공고를 알려드립니다.</p>
+      <p className="text-[12px] mb-6" style={{ color: 'var(--text-muted)' }}>기업마당(bizinfo.go.kr) 공고를 매일 체크하여 조건에 맞는 공고를 이메일로 알려드립니다.</p>
 
       {existing && <div className="mb-4 p-3 rounded-lg text-[12px]" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>기존 알림 설정이 있습니다. 수정하시면 기존 설정이 업데이트됩니다.</div>}
 
       <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <p className="text-[13px] font-semibold mb-4">공고 필터</p>
-        <SelectGroup label="지원분야 (기업마당 분류)" options={FIELDS} value={field} onChange={setField} />
-        <SelectGroup label="지역" options={REGIONS} value={region} onChange={setRegion} />
-        <SimpleSelectGroup label="접수상태" options={STATUSES} value={status} onChange={setStatus} />
+        <p className="text-[13px] font-semibold mb-1">공고 필터</p>
+        <p className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>복수 선택 가능합니다. 선택하지 않으면 전체 대상입니다.</p>
+        <MultiSelect label="지원분야" options={FIELDS} selected={fields} onToggle={v => toggleArr(fields, v, setFields)} />
+        <MultiSelect label="지역" options={REGIONS} selected={regions} onToggle={v => toggleArr(regions, v, setRegions)} />
+        <MultiSelectSimple label="접수상태" options={STATUSES} selected={statuses} onToggle={v => toggleArr(statuses, v, setStatuses)} />
         <div className="mb-2">
           <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>키워드 (선택)</label>
           <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="예: AI, 디지털전환, 스마트공장" className="inp" />
@@ -122,23 +118,23 @@ function SetupContent() {
       </div>
 
       <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-        <p className="text-[13px] font-semibold mb-4">알림 설정</p>
+        <p className="text-[13px] font-semibold mb-3">알림 수신</p>
         <div className="mb-4">
           <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>알림 수신 이메일</label>
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder={user?.email || 'email@example.com'} className="inp" />
-          <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>공고 알림을 받을 이메일 주소</p>
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder={user?.email || 'example@email.com'} className="inp" />
+          <p className="text-[10.5px] mt-1" style={{ color: 'var(--text-muted)' }}>공고 알림을 받을 이메일 주소를 입력해주세요</p>
         </div>
         <p className="text-[11px] p-3 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있으면 이메일로 알림을 보내드립니다. (카카오 알림톡은 도메인 연결 후 지원 예정)
+          매일 오전 9시에 기업마당 공고를 확인합니다. 조건에 맞는 공고가 있을 때만 이메일을 보내드립니다. 공고가 없으면 이메일이 발송되지 않습니다.
         </p>
       </div>
 
       {msg && <div className="mb-3 p-3 rounded-lg text-[12px] text-center" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>{msg}</div>}
 
-      <button onClick={handleSave} disabled={saving || !phone.trim()} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
+      <button onClick={handleSave} disabled={saving || !email.trim()} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
         {saving ? '저장 중...' : existing ? '알림 설정 업데이트' : '알림 설정하기'}
       </button>
-      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>현재 무료 · 카카오 알림톡은 추후 연동 예정</p>
+      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>현재 무료 · 매칭 공고가 있을 때만 발송</p>
     </div>
   )
 }
