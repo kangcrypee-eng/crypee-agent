@@ -51,42 +51,52 @@ function SetupContent() {
     set(arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val])
   }
 
-  // 1단계: 필터 저장
+  // 필터 저장 (프론트에서 직접 supabase 호출 — RLS 통과)
   const handleSave = async () => {
     if (!user) return
     if (!email.trim()) { setMsg('이메일을 입력해주세요'); return }
     setSaving(true)
+    setMsg('')
+
     try {
-      const res = await fetch('/api/alerts/subscribe', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          filters: { fields, regions, statuses, keyword },
-          scheduleType: 'daily', scheduleHour: 9, scheduleDay: null,
-          phone: email.trim(),
-        }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        // 2단계: 결제 (기존 빌링키 없으면 카드 등록)
-        if (existing?.billing_status === 'active') {
-          setMsg('알림 설정이 업데이트되었습니다!')
+      const filterData = { fields, regions, statuses, keyword }
+
+      if (existing) {
+        // 업데이트
+        const { error } = await supabase.from('alert_subscriptions').update({
+          filters: filterData, phone: email.trim(), is_active: true, updated_at: new Date().toISOString(),
+        }).eq('id', existing.id)
+        if (error) throw error
+
+        if (existing.billing_status === 'active') {
+          setMsg('필터 설정이 업데이트되었습니다!')
           setTimeout(() => router.push('/alerts'), 1500)
         } else {
-          // 토스 빌링키 등록
-          await startBillingAuth(data.id || existing?.id)
+          await startBillingAuth(existing.id)
         }
-      } else setMsg(data.error || '오류가 발생했습니다')
-    } catch { setMsg('오류가 발생했습니다') }
+      } else {
+        // 새로 생성
+        const { data, error } = await supabase.from('alert_subscriptions').insert({
+          user_id: user.id, module_type: 'gov_support', filters: filterData,
+          schedule_type: 'daily', schedule_hour: 9, phone: email.trim(),
+        }).select('id').single()
+        if (error) throw error
+        await startBillingAuth(data.id)
+      }
+    } catch (e: any) {
+      setMsg('오류: ' + (e.message || '저장 실패'))
+    }
     setSaving(false)
   }
 
-  // 토스 빌링키 등록 (카드 등록)
+  // 토스 빌링키 등록
   const startBillingAuth = async (subscriptionId: string) => {
     if (!user) return
     const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY
     if (!clientKey || clientKey === 'test_ck_xxx') {
-      setMsg('결제 시스템이 아직 설정되지 않았습니다. 무료로 이용 가능합니다.')
+      // 토스 미설정 → 무료로 활성화
+      await supabase.from('alert_subscriptions').update({ is_active: true, billing_status: 'active' }).eq('id', subscriptionId)
+      setMsg('알림이 설정되었습니다! (결제 시스템 준비 중 — 무료)')
       setTimeout(() => router.push('/alerts'), 1500)
       return
     }
@@ -108,14 +118,13 @@ function SetupContent() {
   // 구독 해지
   const handleCancel = async () => {
     if (!user || !existing) return
-    if (!confirm('정기결제를 해지하시겠습니까? 남은 기간까지는 알림을 받으실 수 있습니다.')) return
+    if (!confirm('정기결제를 해지하시겠습니까?')) return
     try {
-      const res = await fetch('/api/billing/cancel', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriptionId: existing.id, userId: user.id }),
-      })
-      const data = await res.json()
-      setMsg(data.message || '해지되었습니다')
+      const { error } = await supabase.from('alert_subscriptions').update({
+        billing_status: 'cancelled', is_active: false, billing_key: null, updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+      if (error) throw error
+      setMsg('구독이 해지되었습니다.')
       setTimeout(() => router.push('/alerts'), 1500)
     } catch { setMsg('해지 실패') }
   }
@@ -149,16 +158,15 @@ function SetupContent() {
       <h2 className="text-lg font-bold mb-1">🔔 정부지원사업 공고 알림</h2>
       <p className="text-[12px] mb-6" style={{ color: 'var(--text-muted)' }}>기업마당(bizinfo.go.kr) 공고를 매일 체크하여 조건에 맞는 공고를 이메일로 알려드립니다.</p>
 
-      {/* 구독 상태 배너 */}
       {isSubscribed && <div className="mb-4 p-4 rounded-xl border flex items-center justify-between" style={{ background: 'var(--accent-bg)', borderColor: 'var(--accent-border)' }}>
         <div>
           <p className="text-[13px] font-semibold" style={{ color: 'var(--accent)' }}>구독 중 · ₩990/월</p>
-          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{existing.card_company} {existing.card_number} · 다음 결제: {existing.next_billing_at ? new Date(existing.next_billing_at).toLocaleDateString('ko') : '-'}</p>
+          <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{existing.card_company} {existing.card_number}{existing.next_billing_at ? ` · 다음 결제: ${new Date(existing.next_billing_at).toLocaleDateString('ko')}` : ''}</p>
         </div>
         <button onClick={handleCancel} className="px-3 py-1.5 rounded-md text-[11px] border hover:opacity-80" style={{ borderColor: 'var(--error-border)', color: 'var(--error-text)' }}>해지</button>
       </div>}
 
-      {existing && !isSubscribed && existing.billing_status === 'cancelled' && <div className="mb-4 p-3 rounded-lg text-[12px]" style={{ background: 'var(--error-bg)', color: 'var(--error-text)' }}>구독이 해지되었습니다. 다시 구독하려면 아래에서 설정 후 결제해주세요.</div>}
+      {existing && existing.billing_status === 'cancelled' && <div className="mb-4 p-3 rounded-lg text-[12px]" style={{ background: 'var(--error-bg)', color: 'var(--error-text)' }}>구독이 해지되었습니다. 다시 구독하려면 아래에서 설정 후 결제해주세요.</div>}
 
       <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <p className="text-[13px] font-semibold mb-1">공고 필터</p>
