@@ -92,8 +92,9 @@ function SetupContent() {
   // 토스 빌링키 등록
   const startBillingAuth = async (subscriptionId: string) => {
     if (!user) return
-    const clientKey = process.env.NEXT_PUBLIC_TOSS_CK
-    if (!clientKey || clientKey === 'test_ck_xxx') {
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CK || ''
+    console.log('TOSS CK:', clientKey ? 'SET(' + clientKey.substring(0,10) + '...)' : 'EMPTY')
+    if (!clientKey) {
       // 토스 미설정 → 무료로 활성화
       await supabase.from('alert_subscriptions').update({ is_active: true, billing_status: 'active' }).eq('id', subscriptionId)
       setMsg('알림이 설정되었습니다! (결제 시스템 준비 중 — 무료)')

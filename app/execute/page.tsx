@@ -115,8 +115,9 @@ function Exec() {
     if(!user||!m)return
     setPaying(true)
     try{
-      const clientKey=process.env.NEXT_PUBLIC_TOSS_CK
-      if(!clientKey||clientKey==='test_ck_xxx'){alert('결제 시스템이 아직 설정되지 않았습니다.');setPaying(false);return}
+      const clientKey=process.env.NEXT_PUBLIC_TOSS_CK||''
+      console.log('TOSS CK:',clientKey?'SET':'EMPTY')
+      if(!clientKey){alert('결제 시스템이 아직 설정되지 않았습니다.');setPaying(false);return}
       const{loadTossPayments}=await import('@tosspayments/tosspayments-sdk')
       const tossPayments=await loadTossPayments(clientKey)
       const payment=tossPayments.payment({customerKey:user.id})
