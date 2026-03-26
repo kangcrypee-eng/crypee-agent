@@ -134,7 +134,7 @@ function SetupContent() {
       <button onClick={handleSave} disabled={saving || !email.trim()} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
         {saving ? '저장 중...' : existing ? '알림 설정 업데이트' : '알림 설정하기'}
       </button>
-      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>현재 무료 · 매칭 공고가 있을 때만 발송</p>
+      <p className="text-[11px] text-center mt-2" style={{ color: 'var(--text-muted)' }}>₩990/월 · 매칭 공고가 있을 때만 발송</p>
     </div>
   )
 }
