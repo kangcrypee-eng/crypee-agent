@@ -130,7 +130,7 @@ export async function GET() {
 
         try {
           await resend.emails.send({
-            from: 'crypee Agent <onboarding@resend.dev>',
+            from: 'crypee Agent <alert@crypee.biz>',
             to: userEmail,
             subject: `[crypee agent] 정부지원사업 공고 ${total}건 — ${userName}님`,
             html: `
