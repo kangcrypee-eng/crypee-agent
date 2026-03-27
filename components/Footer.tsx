@@ -15,7 +15,7 @@ export default function Footer() {
             <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{color:'var(--text-muted)'}}>서비스</p>
             <div className="flex flex-col gap-2">
               <Link href="/market" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>모듈 마켓</Link>
-              <Link href="/credits" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>크레딧 충전</Link>
+              <Link href="/alerts/setup" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>공고 알림</Link>
               <Link href="/login?signup=1" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>회원가입</Link>
               <Link href="/login" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>로그인</Link>
             </div>
@@ -35,7 +35,7 @@ export default function Footer() {
             <p>주소: 서울특별시 강남구 테헤란로 431, 에스7018호 (삼성동, 저스트코타워)</p>
             <p>전화: 010-5077-2773</p>
             <p>이메일: contact@crypee.io</p>
-            <p className="mt-3 opacity-50">© 2025 Crypee Solutions Corp. All rights reserved.</p>
+            <p className="mt-3 opacity-50">© 2025–2026 Crypee Solutions Corp. All rights reserved.</p>
           </div>
         </div>
       </div>

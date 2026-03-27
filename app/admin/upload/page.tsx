@@ -307,7 +307,7 @@ function UploadContent() {
       </Section>
 
       {/* ===== 샘플 결과물 ===== */}
-      <Section title="샘플 결과물" desc="모듈 마켓에서 사용자가 미리 볼 수 있는 예시 결과물입니다 (크레딧 차감 없음)">
+      <Section title="샘플 결과물" desc="모듈 마켓에서 사용자가 미리 볼 수 있는 예시 결과물입니다 (결제 없이 열람 가능)">
         <Field label="샘플 결과물" desc="더미 사업자 정보로 미리 생성한 결과물을 붙여넣으세요. 비워두면 '예시 없음'으로 표시됩니다.">
           <textarea value={sampleOutput} onChange={e => setSampleOutput(e.target.value)} rows={10}
             placeholder="모듈을 한 번 실행한 결과물을 여기에 붙여넣으세요..."
@@ -476,7 +476,7 @@ function UploadContent() {
               <div>
                 <div className="text-[11px] uppercase tracking-wider mb-1" style={{color:'var(--text-muted)'}}>추천 가격 (마진 {Math.round(pricing.margin)}%)</div>
                 <div className="text-[15px] font-semibold" style={{color:'var(--accent)'}}>
-                  ◆ {pricing.credits} 크레딧
+                  추천 ₩{(pricing.credits * 990).toLocaleString()}
                   <span className="text-[12px] ml-1" style={{color:'var(--text-muted)'}}>(₩{pricing.sellingPrice.toLocaleString()})</span>
                 </div>
               </div>
@@ -485,7 +485,7 @@ function UploadContent() {
         )}
         <div className="flex items-center gap-4">
           <div>
-            <div className="text-[11px] uppercase tracking-wider mb-1.5" style={{color:'var(--text-muted)'}}>크레딧 설정</div>
+            <div className="text-[11px] uppercase tracking-wider mb-1.5" style={{color:'var(--text-muted)'}}>가격 설정 (크레딧 단위)</div>
             <div className="flex items-center gap-2">
               <input type="number" value={creditCost} onChange={e => setCreditCost(Number(e.target.value))} min={1}
                 className="inp w-20 text-center text-lg font-bold" />

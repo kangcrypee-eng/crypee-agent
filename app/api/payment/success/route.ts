@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const moduleId = searchParams.get('moduleId')
   const userId = searchParams.get('userId')
   const inputDataStr = searchParams.get('inputData')
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
 
   if (!paymentKey || !orderId || !amount || !moduleId || !userId) {
     return NextResponse.redirect(`${appUrl}/credits/fail?message=${encodeURIComponent('결제 정보가 올바르지 않습니다')}`)
