@@ -14,7 +14,6 @@ function Content() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // 이미 로그인된 상태면 마켓으로 리다이렉트
   useEffect(() => { if (user) router.replace('/market') }, [user])
 
   const submit = async () => {
@@ -25,33 +24,19 @@ function Content() {
     try {
       if (isSignUp) {
         const { data, error: e } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: pw,
+          email: email.trim(), password: pw,
           options: { data: { email: email.trim() } }
         })
         if (e) { setError(e.message === 'User already registered' ? '이미 가입된 이메일입니다' : e.message); setLoading(false); return }
         if (data.user) {
-          // profiles에 이미 존재하는지 확인 후 삽입
           const { data: existing } = await supabase.from('profiles').select('id').eq('id', data.user.id).single()
-          if (!existing) {
-            await supabase.from('profiles').insert({ id: data.user.id, email: email.trim(), credits: 3, role: 'user' })
-          }
+          if (!existing) await supabase.from('profiles').insert({ id: data.user.id, email: email.trim(), credits: 0, role: 'user' })
         }
-        // 이메일 확인 없이 바로 로그인 시도
-        if (data.session) {
-          await refresh()
-          router.push('/market')
-        } else {
-          // 이메일 확인이 필요한 경우 — 바로 로그인 시도
+        if (data.session) { await refresh(); router.push('/market') }
+        else {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
-          if (signInErr) {
-            setError('가입 완료! 이메일 확인 후 로그인해주세요.')
-            setIsSignUp(false)
-            setLoading(false)
-            return
-          }
-          await refresh()
-          router.push('/market')
+          if (signInErr) { setError('가입 완료! 이메일 확인 후 로그인해주세요.'); setIsSignUp(false); setLoading(false); return }
+          await refresh(); router.push('/market')
         }
       } else {
         const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
@@ -59,14 +44,22 @@ function Content() {
           if (e.message === 'Invalid login credentials') setError('이메일 또는 비밀번호가 올바르지 않습니다')
           else if (e.message === 'Email not confirmed') setError('이메일 인증이 필요합니다. 받은 메일함을 확인해주세요.')
           else setError(e.message)
-          setLoading(false)
-          return
+          setLoading(false); return
         }
-        await refresh()
-        router.push('/market')
+        await refresh(); router.push('/market')
       }
     } catch (e: any) { setError(e.message || '오류가 발생했습니다') }
     setLoading(false)
+  }
+
+  // 카카오 로그인
+  const loginWithKakao = async () => {
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { redirectTo: `${window.location.origin}/auth/callback` }
+    })
+    if (error) setError('카카오 로그인 오류: ' + error.message)
   }
 
   if (user) return <div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>이동 중...</div>
@@ -75,10 +68,24 @@ function Content() {
     <div className="max-w-[380px] mx-auto pt-20 pb-16 animate-in">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-extrabold mb-1"><span style={{color:'var(--text)'}}>crypee</span> <span style={{color:'var(--accent)'}}>Agent</span></h1>
-        <p className="text-xs" style={{color:'var(--text-muted)'}}>{isSignUp ? '계정을 만들고 3크레딧을 받으세요' : '로그인하세요'}</p>
+        <p className="text-xs" style={{color:'var(--text-muted)'}}>{isSignUp ? '계정을 만들고 시작하세요' : '로그인하세요'}</p>
       </div>
       <div className="rounded-[10px] p-6 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
         {error && <div className="mb-4 p-3 rounded-md text-xs border" style={{background:'var(--error-bg)',borderColor:'var(--error-border)',color:'var(--error-text)'}}>{error}</div>}
+
+        {/* 카카오 로그인 */}
+        <button onClick={loginWithKakao} className="w-full py-2.5 font-semibold text-[13px] rounded-md hover:opacity-90 transition-all flex items-center justify-center gap-2 mb-4" style={{background:'#FEE500',color:'#191919'}}>
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#191919" d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.64 5.18-.16.56-.58 2.03-.67 2.35-.1.39.14.39.3.28.12-.08 1.94-1.32 2.73-1.86.65.09 1.32.14 2 .14 4.42 0 8-2.79 8-6.21S13.42 1 9 1"/></svg>
+          카카오로 시작하기
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px" style={{background:'var(--border)'}}/>
+          <span className="text-[11px]" style={{color:'var(--text-muted)'}}>또는</span>
+          <div className="flex-1 h-px" style={{background:'var(--border)'}}/>
+        </div>
+
+        {/* 이메일 로그인 */}
         <div className="mb-3">
           <label className="block text-[11px] font-medium mb-1.5 uppercase tracking-wider" style={{color:'var(--text-muted)'}}>이메일</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="hello@example.com" className="inp" autoComplete="email" />
@@ -88,7 +95,7 @@ function Content() {
           <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="6자 이상" onKeyDown={e => e.key === 'Enter' && submit()} className="inp" autoComplete={isSignUp ? 'new-password' : 'current-password'} />
         </div>
         <button onClick={submit} disabled={loading || !email || !pw} className="w-full py-2.5 font-semibold text-[13px] rounded-md disabled:opacity-50 hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>
-          {loading ? '처리 중...' : isSignUp ? '가입하기' : '로그인'}
+          {loading ? '처리 중...' : isSignUp ? '이메일로 가입하기' : '이메일로 로그인'}
         </button>
         <p className="text-center text-[12px] mt-4" style={{color:'var(--text-muted)'}}>
           {isSignUp ? '이미 계정이 있나요? ' : '계정이 없나요? '}
