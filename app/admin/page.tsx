@@ -217,7 +217,7 @@ export default function AdminPage() {
 
       {/* ===== 구독자 관리 탭 ===== */}
       {tab==='subscribers'&&<>
-        <div className="grid grid-cols-3 gap-2.5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
           {[
             ['전체 구독자',subscribers.length+'명',''],
             ['활성',subscribers.filter(s=>s.is_active).length+'명','var(--accent)'],

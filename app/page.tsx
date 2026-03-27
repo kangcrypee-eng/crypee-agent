@@ -58,7 +58,7 @@ export default function Home() {
 
       {/* 핵심 기능 */}
       <section className="pb-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
           {[
             ['⚡', '원클릭 실행', '사업 정보만 입력하면 즉시 생성'],
             ['🧩', `${moduleCountLabel}개 모듈`, '문서 작성부터 자동화까지'],
