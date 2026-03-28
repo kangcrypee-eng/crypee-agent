@@ -216,6 +216,14 @@ ${m.user_prompt_template||''}`
         }
       }
 
+      // 디버그: 프롬프트에 기존 계획서가 포함되었는지 확인
+      console.log('=== 생성 프롬프트 디버그 ===')
+      console.log('enhancedPrompt 길이:', enhancedPrompt.length, '자')
+      console.log('기존계획서 포함:', enhancedPrompt.includes('기존 사업계획서'))
+      console.log('프롬프트 처음 200자:', enhancedPrompt.substring(0, 200))
+      console.log('useExistingMode:', useExistingMode)
+      console.log('extraData._existing_plan 길이:', extraData._existing_plan?.length || 0)
+
       setGenStep(m.mode==='bizplan'?'✍️ 사업계획서 작성 중... (약 1~2분)':'✍️ AI가 작성 중...');setProg(20)
       const fullText=await callGenerate(enhancedPrompt,m.system_prompt,inputData,extraData)
       if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
