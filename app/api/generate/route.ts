@@ -18,10 +18,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, result: `[시뮬레이션 모드]\nAPI 키 미설정. 모듈: ${moduleId}`, usage: { input_tokens: 0, output_tokens: 0, model: aiModel, generation_time_ms: 0 } })
     }
 
-    const model = aiModel || 'claude-sonnet-4-6'
-    // bizplan 등 긴 문서는 최소 16384 토큰 보장
-    const resolvedMaxTokens = Math.max(maxTokens || 4096, moduleId?.startsWith('BP') ? 16384 : 4096)
-    const sysPrompt = (systemPrompt || '') + (moduleId?.startsWith('BP') ? '\n\n[중요] 반드시 모든 섹션을 빠짐없이 끝까지 완성하세요. 절대 중간에 생략하거나 요약하지 마세요. 각 항목을 구체적으로 작성하세요.' : '')
+    // BP 모듈: Opus는 60초 내 완료 불가 → Sonnet 강제 (3~5배 빠름, 품질 충분)
+    const isBP = moduleId?.startsWith('BP')
+    const model = isBP ? 'claude-sonnet-4-6' : (aiModel || 'claude-sonnet-4-6')
+    const resolvedMaxTokens = isBP ? 16384 : (maxTokens || 4096)
+    const sysPrompt = (systemPrompt || '') + (isBP ? '\n\n[중요 지시사항]\n- 반드시 모든 섹션을 빠짐없이 끝까지 완성하세요\n- 절대 중간에 생략하거나 요약하지 마세요\n- 각 항목을 구체적이고 상세하게 작성하세요\n- 마지막 섹션까지 동일한 품질과 분량을 유지하세요' : '')
     const body = { model, max_tokens: resolvedMaxTokens, temperature: temperature ?? 0.3, system: sysPrompt, messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {

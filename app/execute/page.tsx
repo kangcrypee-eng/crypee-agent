@@ -143,9 +143,9 @@ function Exec() {
           extraData._existing_plan=text.substring(0,15000)
           console.log('기존 계획서 텍스트 로드 완료:',text.length,'자')
         }else{
-          console.warn('PDF에서 텍스트 추출 실패 - 스캔 이미지 PDF일 수 있습니다')
+          alert('PDF에서 텍스트를 추출할 수 없습니다. 스캔 이미지 PDF가 아닌, 텍스트가 포함된 PDF를 업로드해주세요.')
         }
-      }catch(e){console.error('기존 계획서 처리 실패:',e)}
+      }catch(e){console.error('기존 계획서 처리 실패:',e);alert('PDF 파일 처리 중 오류가 발생했습니다.')}
     }
     if(images.length>0){
       extraData._uploaded_images=images.map(img=>img.name).join(', ')
