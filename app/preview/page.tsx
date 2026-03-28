@@ -38,10 +38,13 @@ function Pv() {
   // bizplan 결제 → 잠금 해제
   const handleUnlock=async()=>{
     if(!m||!user)return
+    const clientKey=process.env.NEXT_PUBLIC_TOSS_CK||''
+    if(!clientKey){
+      // 토스 미설정 → 무료 해제
+      setIsLocked(false);return
+    }
     setUnlocking(true)
     try{
-      const clientKey=process.env.NEXT_PUBLIC_TOSS_CK||''
-      if(!clientKey){alert('결제 시스템이 아직 설정되지 않았습니다.');setIsLocked(false);setUnlocking(false);return}
       const{loadTossPayments}=await import('@tosspayments/tosspayments-sdk')
       const tossPayments=await loadTossPayments(clientKey)
       const payment=tossPayments.payment({customerKey:user.id})
@@ -52,7 +55,7 @@ function Pv() {
         amount:{currency:'KRW',value:m.price_krw},
         orderId,
         orderName:m.name,
-        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&unlock=true`,
+        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}`,
         failUrl:`${appUrl}/api/payment/fail`,
       })
     }catch(e:any){
@@ -143,7 +146,7 @@ function Pv() {
         {editing?<textarea ref={textareaRef} value={editText} onChange={e=>{setEditText(e.target.value);if(textareaRef.current){textareaRef.current.style.height='auto';textareaRef.current.style.height=textareaRef.current.scrollHeight+'px'}}} className="w-full min-h-[320px] sm:min-h-[480px] p-7 text-[13.5px] leading-[1.8] font-mono resize-none outline-none" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} spellCheck={false}/>
         :isLocked?(
           <div className="relative">
-            <div className="p-7 text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)',maxHeight:'400px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result.substring(0,1500))+'</p>'}}/>
+            <div className="p-7 text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)',maxHeight:'500px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result.substring(0,3000))+'</p>'}}/>
             <div className="absolute bottom-0 left-0 right-0 h-[200px]" style={{background:'linear-gradient(transparent, var(--preview-bg) 70%)'}}/>
             <div className="absolute bottom-0 left-0 right-0 p-8 text-center">
               <p className="text-[14px] font-semibold mb-2" style={{color:'var(--preview-text)'}}>전체 결과물을 확인하세요</p>
