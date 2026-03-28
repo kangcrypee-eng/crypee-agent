@@ -120,105 +120,126 @@ function Exec() {
     })
   }
 
+  // 스트림 읽기 헬퍼
+  const readStream=async(res:Response):Promise<string>=>{
+    const reader=res.body?.getReader()
+    const decoder=new TextDecoder()
+    let text=''
+    if(reader){
+      while(true){
+        const{done,value}=await reader.read()
+        if(done)break
+        text+=decoder.decode(value,{stream:true})
+      }
+    }
+    // 메타데이터 분리
+    const meta=text.match(/<!--USAGE:(.*?)-->/)
+    if(meta)text=text.replace(meta[0],'').trim()
+    return text
+  }
+
+  // 단일 파트 생성 호출
+  const callGenerate=async(prompt:string,sysPrompt:string,inputData:Record<string,string>,extra:Record<string,string>):Promise<string>=>{
+    const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m!.id,systemPrompt:sysPrompt,userPrompt:prompt,aiModel:m!.ai_model,maxTokens:m!.max_tokens,temperature:m!.temperature,profileData:inputData,additionalData:extra,stream:true})})
+    if(!res.ok){const err=await res.json().catch(()=>({error:'생성 실패'}));throw new Error(err.error||'알 수 없는 오류')}
+    return readStream(res)
+  }
+
   // 무료 모듈: 직접 AI 생성
   const generateDirect=async()=>{
     if(!m||!user)return
-    setGen(true);setGenStep('준비 중...')
-    const steps=m.mode==='bizplan'
-      ?['📋 공고 양식 분석 중...','🔍 심사기준 매칭 중...','✍️ 사업계획서 작성 중...','📊 표/데이터 생성 중...','✅ 최종 검토 중...']
-      :['🔍 입력 정보 분석 중...','✍️ AI가 작성 중...','📊 내용 구성 중...','✅ 최종 정리 중...']
-    let stepIdx=0
-    const stepInterval=setInterval(()=>{stepIdx++;if(stepIdx<steps.length){setGenStep(steps[stepIdx]);setProg(Math.min(90,((stepIdx+1)/steps.length)*100))}},8000)
-    setProg(15);setGenStep(steps[0])
+    setGen(true);setGenStep('준비 중...');setProg(5)
 
     const inputData=collectInputData()
+    const extraData={...fd}
 
     // bizplan: 기존 사업계획서 텍스트를 추가 데이터에 포함
-    const extraData={...fd}
     if(existingPlan){
       try{
-        setGenStep('📄 기존 계획서 분석 중...')
+        setGenStep('📄 기존 계획서 분석 중...');setProg(10)
         const text=await extractText(existingPlan)
         if(text.trim()){
           extraData._existing_plan=text.substring(0,15000)
           console.log('기존 계획서 텍스트 로드 완료:',text.length,'자')
         }else{
-          alert('PDF에서 텍스트를 추출할 수 없습니다. 스캔 이미지 PDF가 아닌, 텍스트가 포함된 PDF를 업로드해주세요.')
+          if(useExistingMode){alert('PDF에서 텍스트를 추출할 수 없습니다.\n스캔 이미지 PDF가 아닌, 텍스트가 포함된 PDF를 업로드해주세요.');setGen(false);setGenStep('');return}
         }
-      }catch(e){console.error('기존 계획서 처리 실패:',e);alert('PDF 파일 처리 중 오류가 발생했습니다.')}
-    }
-    if(images.length>0){
-      extraData._uploaded_images=images.map(img=>img.name).join(', ')
+      }catch(e){console.error('기존 계획서 처리 실패:',e);alert('PDF 파일 처리 중 오류가 발생했습니다.');setGen(false);setGenStep('');return}
     }
 
     try{
-      // user_prompt_template에 기존 계획서 내용 추가
-      let enhancedPrompt=m.user_prompt_template
-      if(useExistingMode&&extraData._existing_plan){
-        enhancedPrompt=`[작성 모드: 기존 사업계획서 기반 재작성]
+      if(m.mode==='bizplan'){
+        // === 사업계획서: 파트별 분할 생성 (60초 제한 우회) ===
+        const existingRef=extraData._existing_plan
+        const refBlock=existingRef
+          ?(useExistingMode
+            ?`\n\n[기존 사업계획서 — 핵심 내용을 최대한 활용하여 재작성]\n${existingRef}`
+            :`\n\n[기존 사업계획서 참고]\n${existingRef}`)
+          :''
+        const bizInfo=`\n\n[사업자 정보]\n상호: {{business_name}}\n대표자: {{representative}}\n업종: {{sector}} / {{item}}\n서비스: {{service_desc}}\n타겟 고객: {{target_customer}}\n주요 실적: {{track_record}}`
 
-아래 기존 사업계획서의 내용을 분석하고, 이 공고의 양식과 심사기준에 맞춰 전면 재작성해주세요.
-- 기존 계획서의 핵심 아이디어, 수치, 실적, 팀 정보를 최대한 활용
-- 새 공고의 양식 구조와 순서를 정확히 따를 것
-- 심사배점이 높은 항목에 더 집중
-- 부족한 정보는 업종에 맞게 합리적으로 추정 [확인 필요]
-- 모든 주장에 근거/출처 포함 (출처 불명 시 [출처 확인 필요] 표시)
+        // 파트 1: 창업 아이템 개요 + 시장 분석
+        setGenStep('✍️ [1/3] 창업 아이템·시장 분석 작성 중...');setProg(15)
+        const prompt1=`아래 양식의 "1. 창업 아이템 개요"와 "2. 시장 분석" 섹션만 작성하세요.
+각 항목을 상세하고 구체적으로 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
+이 두 섹션이 끝나면 중단하세요. 다른 섹션은 작성하지 마세요.${refBlock}${bizInfo}
 
-[기존 사업계획서]
-${extraData._existing_plan}
+${m.user_prompt_template}`
+        const part1=await callGenerate(prompt1,m.system_prompt,inputData,extraData)
+        if(!part1.trim())throw new Error('파트1 생성 실패')
 
-[사업자 정보]
-상호: {{business_name}}
-대표자: {{representative}}
-업종: {{sector}} / {{item}}
-서비스: {{service_desc}}`
-      } else if(extraData._existing_plan){
-        enhancedPrompt+=`\n\n[기존 사업계획서 참고 내용]\n${extraData._existing_plan}\n\n※ 위 기존 계획서의 핵심 내용, 수치, 표현을 참고하되, 입력된 정보를 우선하여 새 양식에 맞게 작성해주세요. 모든 주장에 근거/출처를 포함하세요 (출처 불명 시 [출처 확인 필요]).`
-      }
-      if(extraData._uploaded_images){
-        enhancedPrompt+=`\n\n[업로드된 이미지]\n${extraData._uploaded_images}\n\n※ 위 이미지를 적절한 위치에 [이미지 삽입: 파일명] 마커로 포함해주세요.`
-      }
+        // 파트 2: 실현 가능성
+        setGenStep('✍️ [2/3] 실현 가능성 작성 중...');setProg(45)
+        const prompt2=`아래 양식의 "3. 실현 가능성" 섹션만 작성하세요.
+기술적 실현 가능성, 인력 구성, 자금 운영 계획 등을 상세하게 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
+이 섹션이 끝나면 중단하세요. 다른 섹션은 작성하지 마세요.
 
-      // 스트리밍 모드로 호출
-      const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:enhancedPrompt,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:extraData,stream:true})})
+[이전에 작성된 내용 요약 — 일관성 유지]
+${part1.substring(0,3000)}${refBlock}${bizInfo}
 
-      clearInterval(stepInterval)
+${m.user_prompt_template}`
+        const part2=await callGenerate(prompt2,m.system_prompt,inputData,extraData)
 
-      if(!res.ok){
-        const err=await res.json().catch(()=>({error:'생성 실패'}))
-        alert('생성 실패: '+(err.error||'알 수 없는 오류'));setGen(false);setGenStep('');return
-      }
+        // 파트 3: 사업화 전략 + 나머지
+        setGenStep('✍️ [3/3] 사업화 전략 작성 중...');setProg(70)
+        const prompt3=`아래 양식의 "4. 사업화 전략" 및 나머지 모든 섹션을 작성하세요.
+사업화 전략, 매출 계획, 마케팅 전략, 성장 로드맵 등을 상세하게 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
+반드시 끝까지 완성하세요.
 
-      // 스트림 읽기
-      setGenStep('✍️ AI가 작성 중...');setProg(50)
-      const reader=res.body?.getReader()
-      const decoder=new TextDecoder()
-      let fullText=''
+[이전에 작성된 내용 요약 — 일관성 유지]
+${part1.substring(0,2000)}
+${part2.substring(0,2000)}${refBlock}${bizInfo}
 
-      if(reader){
-        while(true){
-          const{done,value}=await reader.read()
-          if(done)break
-          const chunk=decoder.decode(value,{stream:true})
-          fullText+=chunk
-          // 진행률 업데이트 (글자 수 기반)
-          setProg(Math.min(90,50+(fullText.length/5000)*40))
+${m.user_prompt_template}`
+        const part3=await callGenerate(prompt3,m.system_prompt,inputData,extraData)
+
+        const fullText=[part1,part2,part3].filter(Boolean).join('\n\n')
+        if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
+
+        setGenStep('💾 저장 중...');setProg(95)
+        await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:'claude-sonnet-4-6'})
+        await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
+        sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
+        setProg(100);setGenStep('✅ 완료!')
+        router.push('/preview?id='+m.id)
+      } else {
+        // === 일반 모듈: 단일 호출 ===
+        setGenStep('✍️ AI가 작성 중...');setProg(20)
+        let enhancedPrompt=m.user_prompt_template
+        if(extraData._existing_plan){
+          enhancedPrompt+=`\n\n[참고 자료]\n${extraData._existing_plan}`
         }
+        const fullText=await callGenerate(enhancedPrompt,m.system_prompt,inputData,extraData)
+        if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
+
+        setGenStep('💾 저장 중...');setProg(95)
+        await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:m.ai_model})
+        await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
+        sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
+        setProg(100);setGenStep('✅ 완료!')
+        router.push('/preview?id='+m.id)
       }
-
-      // 메타데이터 분리 (있으면)
-      const usageMeta=fullText.match(/<!--USAGE:(.*?)-->/)
-      if(usageMeta)fullText=fullText.replace(usageMeta[0],'').trim()
-
-      if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
-
-      setGenStep('💾 저장 중...');setProg(95)
-      await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:m.ai_model})
-      await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
-      sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
-      setProg(100);setGenStep('✅ 완료!')
-      router.push('/preview?id='+m.id)
-    }catch(e){clearInterval(stepInterval);alert('생성 실패');setGen(false);setGenStep('')}
+    }catch(e:any){alert('생성 실패: '+(e.message||''));setGen(false);setGenStep('')}
   }
 
   // 유료 모듈: 토스 결제 시작
