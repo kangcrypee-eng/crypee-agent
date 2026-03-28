@@ -110,7 +110,56 @@ function Pv() {
     setRegenerating(false);setRegenProg(0)
   }
 
-  const dl=()=>{const text=editing?editText:result;if(!text||!m)return;const b=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=m.name+'.'+(fmt==='pdf'?'txt':fmt);a.click()}
+  const dl=async()=>{
+    const text=editing?editText:result;if(!text||!m)return
+
+    if(fmt==='pdf'){
+      // PDF 다운로드
+      const{jsPDF}=await import('jspdf')
+      const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'})
+
+      // 한글 폰트 지원을 위해 기본 폰트 사용 + 유니코드
+      const pageWidth=170;const marginLeft=20;const marginTop=20
+      let y=marginTop
+
+      // 텍스트를 줄 단위로 처리
+      const lines=text.split('\n')
+      for(const line of lines){
+        const cleaned=line.replace(/\*\*/g,'').replace(/^#+\s*/,'').replace(/━+/g,'─────────────────────────────')
+
+        if(y>275){doc.addPage();y=marginTop}
+
+        if(line.startsWith('# ')||line.startsWith('## ')||line.startsWith('### ')){
+          const level=line.startsWith('### ')?12:line.startsWith('## ')?14:16
+          doc.setFontSize(level)
+          doc.setFont('helvetica','bold')
+          const title=line.replace(/^#+\s*/,'')
+          doc.text(title,marginLeft,y)
+          y+=level*0.5+2
+        } else if(line.startsWith('|')){
+          // 표 행
+          doc.setFontSize(9)
+          doc.setFont('helvetica','normal')
+          const wrapped=doc.splitTextToSize(cleaned,pageWidth)
+          doc.text(wrapped,marginLeft,y)
+          y+=wrapped.length*4+1
+        } else if(line.trim()===''){
+          y+=3
+        } else {
+          doc.setFontSize(10)
+          doc.setFont('helvetica',line.includes('**')?'bold':'normal')
+          const wrapped=doc.splitTextToSize(cleaned,pageWidth)
+          doc.text(wrapped,marginLeft,y)
+          y+=wrapped.length*4.5+1
+        }
+      }
+
+      doc.save(m.name+'.pdf')
+    } else {
+      // 텍스트/기타 포맷
+      const b=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=m.name+'.'+fmt;a.click()
+    }
+  }
   const render=(t:string)=>t.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin-bottom:10px">').replace(/\n/g,'<br>')
 
   if(ld)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
