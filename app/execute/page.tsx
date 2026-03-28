@@ -99,15 +99,12 @@ function Exec() {
     }
   }
 
-  // 파일 텍스트 추출 — 브라우저에서 직접 pdf.js로 추출 (한글 CIDFont 완벽 지원)
+  // 파일 텍스트 추출 — 브라우저에서 pdfjs-dist로 추출 (한글 CIDFont 지원)
   const extractText=async(file:File):Promise<string>=>{
     if(file.name.toLowerCase().endsWith('.pdf')){
       try{
-        // pdf.js CDN 로드 (CMap 포함)
-        const pdfjsSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs'
-        const pdfjsWorker='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs'
-        const pdfjsLib=await import(/* webpackIgnore: true */ pdfjsSrc)
-        pdfjsLib.GlobalWorkerOptions.workerSrc=pdfjsWorker
+        const pdfjsLib=await import('pdfjs-dist')
+        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs'
 
         const arrayBuffer=await file.arrayBuffer()
         const doc=await pdfjsLib.getDocument({
@@ -124,10 +121,10 @@ function Exec() {
           if(text.trim())pages.push(text.trim())
         }
         const fullText=pages.join('\n\n')
-        console.log('PDF extracted (client):',fullText.length,'chars,',doc.numPages,'pages')
+        console.log('PDF extracted (pdfjs-dist):',fullText.length,'chars,',doc.numPages,'pages')
         return fullText
       }catch(e){
-        console.error('Client PDF extract failed:',e)
+        console.error('pdfjs-dist extract failed:',e)
         // 서버 폴백
         try{
           const formBody=new FormData();formBody.append('file',file)
