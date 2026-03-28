@@ -3,6 +3,8 @@ import { getDocumentProxy } from 'unpdf'
 import AdmZip from 'adm-zip'
 import { XMLParser } from 'fast-xml-parser'
 import { parse as parseHwp } from 'hwp.js'
+import { inflateRawSync } from 'zlib'
+import cfb from 'cfb'
 
 export const maxDuration = 30
 
@@ -29,48 +31,56 @@ async function extractPdf(data: Uint8Array): Promise<{ text: string; pages: numb
 }
 
 // ============================================================
-// 2. HWP 텍스트 추출 (hwp.js — 레거시 바이너리 .hwp)
+// 2. HWP 텍스트 추출 — hwp.js 시도 후 실패 시 CFB+zlib 직접 파싱
 // ============================================================
 function extractHwp(buffer: Buffer): string {
-  const parsed = parseHwp(buffer, { type: 'buffer' })
+  // 방법 1: hwp.js (비압축 HWP)
+  try {
+    const parsed = parseHwp(buffer, { type: 'buffer' })
+    const texts: string[] = []
+    const extractItems = (items: any[]) => { if (!items?.length) return; let l=''; for (const i of items) { if (i.type===0) l+=typeof i.value==='string'?i.value:String.fromCharCode(i.value) }; if (l.trim()) texts.push(l.trim()) }
+    const walkP = (p: any) => { if (!p) return; if (Array.isArray(p.content)) extractItems(p.content); if (p.controls) for (const c of p.controls) { if (c.content&&Array.isArray(c.content)) for (const row of c.content) { if (Array.isArray(row)) for (const cell of row) { if (cell.items) cell.items.forEach(walkP) } } } }
+    if (parsed.sections) for (const s of parsed.sections) { if (s.content) s.content.forEach(walkP) }
+    if (texts.length > 0) return texts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  } catch { /* hwp.js 실패 → 방법 2 */ }
+
+  // 방법 2: CFB + inflateRaw (압축된 HWP)
+  const container = cfb.read(buffer, { type: 'buffer' })
   const texts: string[] = []
 
-  function extractFromItems(items: any[]) {
-    if (!items || !Array.isArray(items)) return
-    let line = ''
-    for (const item of items) {
-      if (item.type === 0) {
-        if (typeof item.value === 'string') line += item.value
-        else if (typeof item.value === 'number') line += String.fromCharCode(item.value)
-      }
-    }
-    if (line.trim()) texts.push(line.trim())
-  }
+  // PrvText fallback
+  const prvEntry = cfb.find(container, '/PrvText')
+  const prvText = prvEntry ? Buffer.from(prvEntry.content).toString('utf16le').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''
 
-  function walkParagraph(para: any) {
-    if (!para) return
-    if (Array.isArray(para.content)) extractFromItems(para.content)
-    if (para.controls) {
-      for (const ctrl of para.controls) {
-        if (ctrl.content && Array.isArray(ctrl.content)) {
-          for (const row of ctrl.content) {
-            if (Array.isArray(row)) {
-              for (const cell of row) {
-                if (cell.items) cell.items.forEach(walkParagraph)
-              }
-            }
-          }
+  // BodyText/Section0~N
+  let idx = 0
+  while (true) {
+    const entry = cfb.find(container, `/BodyText/Section${idx}`)
+    if (!entry) break
+    try {
+      const inflated = inflateRawSync(Buffer.from(entry.content))
+      let pos = 0
+      while (pos < inflated.length - 4) {
+        const hdr = inflated.readUInt32LE(pos)
+        const tagID = hdr & 0x3FF
+        let size = (hdr >> 20) & 0xFFF
+        let ds = pos + 4
+        if (size === 0xFFF) { if (pos + 8 > inflated.length) break; size = inflated.readUInt32LE(pos + 4); ds = pos + 8 }
+        if (ds + size > inflated.length) break
+        if (tagID === 67 && size > 0) {
+          const tb = inflated.slice(ds, ds + size)
+          let t = ''
+          for (let i = 0; i < tb.length - 1; i += 2) { const c = tb.readUInt16LE(i); if (c===9) t+=' '; else if (c===10||c===13) t+='\n'; else if (c>=32) t+=String.fromCharCode(c) }
+          if (t.trim()) texts.push(t.trim())
         }
+        pos = ds + size; if (size <= 0) break
       }
-    }
+    } catch { /* 섹션 해제 실패 */ }
+    idx++
   }
 
-  if (parsed.sections) {
-    for (const section of parsed.sections) {
-      if (section.content) section.content.forEach(walkParagraph)
-    }
-  }
-  return texts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  const full = texts.join('\n').replace(/[捤獥汤捯氠瑢湯湷]+/g, '').replace(/\n{3,}/g, '\n\n').trim()
+  return full || prvText
 }
 
 // ============================================================
