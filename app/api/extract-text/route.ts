@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDocumentProxy } from 'unpdf'
 import AdmZip from 'adm-zip'
 import { XMLParser } from 'fast-xml-parser'
+import { parse as parseHwp } from 'hwp.js'
 
 export const maxDuration = 30
 
@@ -31,8 +32,7 @@ async function extractPdf(data: Uint8Array): Promise<{ text: string; pages: numb
 // 2. HWP 텍스트 추출 (hwp.js — 레거시 바이너리 .hwp)
 // ============================================================
 function extractHwp(buffer: Buffer): string {
-  const { parse } = require('hwp.js')
-  const parsed = parse(buffer, { type: 'buffer' })
+  const parsed = parseHwp(buffer, { type: 'buffer' })
   const texts: string[] = []
 
   function extractFromItems(items: any[]) {

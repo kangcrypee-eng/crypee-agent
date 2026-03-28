@@ -162,9 +162,9 @@ function Exec() {
           extraData._existing_plan=text.substring(0,15000)
           console.log('기존 계획서 텍스트 로드 완료:',text.length,'자')
         }else{
-          if(useExistingMode){alert('PDF에서 텍스트를 추출할 수 없습니다.\n스캔 이미지 PDF가 아닌, 텍스트가 포함된 PDF를 업로드해주세요.');setGen(false);setGenStep('');return}
+          if(useExistingMode){alert('파일에서 텍스트를 추출할 수 없습니다.\nHWP, HWPX, PDF(텍스트 포함), TXT 파일을 업로드해주세요.');setGen(false);setGenStep('');return}
         }
-      }catch(e){console.error('기존 계획서 처리 실패:',e);alert('PDF 파일 처리 중 오류가 발생했습니다.');setGen(false);setGenStep('');return}
+      }catch(e:any){console.error('기존 계획서 처리 실패:',e);alert('파일 처리 실패: '+(e.message||'알 수 없는 오류'));setGen(false);setGenStep('');return}
     }
 
     try{
@@ -300,7 +300,7 @@ ${m.user_prompt_template||''}`
               <label className="block p-6 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--accent-border)'}}>
                 <span className="text-2xl">📄</span>
                 <p className="text-[12px] mt-1 font-medium" style={{color:'var(--accent)'}}>기존 사업계획서 업로드</p>
-                <p className="text-[10px] mt-0.5" style={{color:'var(--text-muted)'}}>PDF, DOCX, TXT (필수)</p>
+                <p className="text-[10px] mt-0.5" style={{color:'var(--text-muted)'}}>HWP, HWPX, PDF, TXT (필수)</p>
                 <input type="file" accept=".pdf,.docx,.txt,.hwp,.hwpx" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
               </label>
             )}
@@ -327,7 +327,7 @@ ${m.user_prompt_template||''}`
             ):(
               <label className="block p-4 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--border-strong)'}}>
                 <span className="text-lg opacity-40">📎</span>
-                <p className="text-[10px]" style={{color:'var(--text-muted)'}}>이전에 작성한 사업계획서 (PDF, DOCX, TXT)</p>
+                <p className="text-[10px]" style={{color:'var(--text-muted)'}}>이전에 작성한 사업계획서 (HWP, HWPX, PDF, TXT)</p>
                 <input type="file" accept=".pdf,.docx,.txt,.hwp,.hwpx" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
               </label>
             )}
