@@ -99,8 +99,18 @@ function Exec() {
     }
   }
 
-  // 파일 텍스트 추출 (클라이언트에서)
-  const readFileAsText=async(file:File):Promise<string>=>{
+  // 파일 텍스트 추출 (PDF는 서버, 나머지는 클라이언트)
+  const extractText=async(file:File):Promise<string>=>{
+    if(file.name.endsWith('.pdf')){
+      // PDF는 서버에서 추출
+      const fd=new FormData();fd.append('file',file)
+      try{
+        const res=await fetch('/api/extract-text',{method:'POST',body:fd})
+        const data=await res.json()
+        return data.text||''
+      }catch{return ''}
+    }
+    // 텍스트 파일은 클라이언트에서
     return new Promise((resolve)=>{
       const reader=new FileReader()
       reader.onload=()=>resolve(reader.result as string||'')
@@ -125,7 +135,7 @@ function Exec() {
     // bizplan: 기존 사업계획서 텍스트를 추가 데이터에 포함
     const extraData={...fd}
     if(existingPlan){
-      try{const text=await readFileAsText(existingPlan);if(text.trim())extraData._existing_plan=text.substring(0,8000)}catch{}
+      try{const text=await extractText(existingPlan);if(text.trim())extraData._existing_plan=text.substring(0,8000)}catch{}
     }
     if(images.length>0){
       extraData._uploaded_images=images.map(img=>img.name).join(', ')
