@@ -19,16 +19,14 @@ function Pv() {
       if(mod){
         setM(mod);setFmt(mod.default_format||'pdf')
         if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
-        // bizplan 모듈: 결제 여부 확인
-        if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
-          if(purchased){
-            setIsLocked(false) // 결제 직후 돌아온 경우
-          } else {
-            supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
-              setIsLocked(!pays||pays.length===0)
-            })
-          }
-        }
+        // bizplan 모듈: 결제 잠금 (토스 라이브키 설정 후 활성화)
+        // 현재는 테스트 단계이므로 잠금 비활성화
+        // TODO: 라이브키 설정 후 아래 주석 해제
+        // if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
+        //   supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
+        //     setIsLocked(!pays||pays.length===0)
+        //   })
+        // }
       }
       const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
     })
