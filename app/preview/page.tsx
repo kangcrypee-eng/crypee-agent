@@ -155,6 +155,9 @@ th{background:#f0f0f0;font-weight:600}
 strong{font-weight:700}
 p{margin:6px 0}
 .section-divider{border-top:2px solid #111;margin:15px 0}
+.check-box{background:#FFF8E1;border:2px solid #FFB300;border-radius:8px;padding:15px 18px;margin:15px 0;page-break-inside:avoid}
+.check-box .title{font-size:13pt;font-weight:700;color:#E65100;margin-bottom:8px}
+.check-tag{background:#FFF3CD;color:#856404;padding:1px 4px;border-radius:2px;font-size:9pt;font-weight:600;border:1px solid #FFEEBA}
 @media print{body{margin:0;padding:15mm}}
 @page{size:A4;margin:15mm}
 </style></head><body>`)
@@ -164,7 +167,14 @@ p{margin:6px 0}
         .replace(/^# (.+)$/gm,'<h1>$1</h1>')
         .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
         .replace(/━+/g,'<div class="section-divider"></div>')
+        .replace(/\[확인 필요\]/g,'<span class="check-tag">📝 확인 필요</span>')
       html=html.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,true))
+      // ⚠️ 블록 처리
+      html=html.replace(/(?:^|\n)((?:>.*\n?)+)/g,(match)=>{
+        if(!match.includes('확인 필요')&&!match.includes('보완'))return match
+        const inner=match.replace(/(?:^|\n)>\s?/g,'\n').trim()
+        return `<div class="check-box"><div class="title">⚠️ 제출 전 반드시 확인하세요</div>${inner}</div>`
+      })
       html=html.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')
       printWindow.document.write('<p>'+html+'</p>')
       printWindow.document.write('</body></html>')
@@ -181,6 +191,14 @@ p{margin:6px 0}
     html=html.replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>')
     html=html.replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>')
     html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    // [확인 필요] 하이라이트
+    html=html.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 6px;border-radius:3px;font-size:12px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
+    // ⚠️ 작성자 확인 필요 블록 — 눈에 띄는 카드형 박스
+    html=html.replace(/(?:^|<br>)((?:>.*(?:<br>|$))+)/g,(match)=>{
+      if(!match.includes('확인 필요')&&!match.includes('보완'))return match
+      const inner=match.replace(/(?:^|<br>)>\s?/g,'<br>').replace(/^<br>/,'')
+      return `<div style="background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:2px solid #FFB300;border-radius:12px;padding:20px 24px;margin:20px 0;box-shadow:0 2px 8px rgba(255,179,0,0.15)"><div style="font-size:16px;font-weight:700;color:#E65100;margin-bottom:12px">⚠️ 제출 전 반드시 확인하세요</div>${inner}</div>`
+    })
     html=html.replace(/\n\n/g,'</p><p style="margin-bottom:10px">')
     html=html.replace(/\n/g,'<br>')
     return html
