@@ -142,7 +142,7 @@ function Pv() {
     // HWPX 다운로드
     if(fmt==='hwpx'){
       try{
-        const res=await fetch('/api/download-hwp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({markdown:text,title:m.name})})
+        const res=await fetch('/api/download-hwp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({markdown:text,title:m.name,moduleId:m.id})})
         if(!res.ok){alert('HWPX 생성 실패');return}
         const blob=await res.blob()
         const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=m.name+'.hwpx';a.click();URL.revokeObjectURL(a.href)
