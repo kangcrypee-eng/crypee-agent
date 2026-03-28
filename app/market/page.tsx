@@ -57,14 +57,9 @@ export default function MarketPage() {
 
             {selected.tags?.length>0&&<div className="flex gap-1 flex-wrap mb-4">{selected.tags.map((t:string)=><span key={t} className="px-2 py-0.5 rounded text-[10.5px] border" style={{background:'var(--surface-hover)',borderColor:'var(--border)',color:'var(--text-muted)'}}>{t}</span>)}</div>}
 
-            {/* 미리보기 */}
-            {!showSample&&<button onClick={()=>setShowSample(true)} className="w-full mb-4 py-2.5 rounded-lg text-[13px] border transition-all hover:opacity-80" style={{borderColor:'var(--accent-border)',color:'var(--accent)'}}>미리보기</button>}
-
-            {showSample&&<div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-semibold" style={{color:'var(--text-secondary)'}}>미리보기</span>
-                <button onClick={()=>setShowSample(false)} className="text-[11px]" style={{color:'var(--text-muted)'}}>접기</button>
-              </div>
+            {/* 미리보기 (바로 표시) */}
+            <div className="mb-4">
+              <p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-secondary)'}}>미리보기</p>
               {selected.sample_output?(
                 <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
                   <div className="p-5 max-h-[250px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+render(selected.sample_output)+'</p>'}}/>
@@ -87,11 +82,11 @@ export default function MarketPage() {
                   <p className="text-[12px]" style={{color:'var(--text-muted)'}}>예시 결과물 준비 중</p>
                 </div>
               )}
-            </div>}
+            </div>
 
             <div className="flex gap-2">
               <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push('/module/'+selected.id)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>상세</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>
         </div>
