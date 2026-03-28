@@ -49,6 +49,8 @@ function Exec() {
   const[msgs,setMsgs]=useState<{type:string;text:string}[]>([]);const[ci,setCi]=useState('')
   // bizplan 파일 업로드
   const[existingPlan,setExistingPlan]=useState<File|null>(null);const[images,setImages]=useState<File[]>([])
+  const[useExistingMode,setUseExistingMode]=useState(false)
+  const[genStep,setGenStep]=useState('')
   const[cs,setCs]=useState(0);const[fd,setFd]=useState<Record<string,string>>({})
   const[autoFields,setAutoFields]=useState<Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>>([])
   const[profileFields,setProfileFields]=useState<Array<{key:string;label:string;value:string}>>([])
@@ -110,7 +112,14 @@ function Exec() {
   // 무료 모듈: 직접 AI 생성
   const generateDirect=async()=>{
     if(!m||!user)return
-    setGen(true);for(let i=0;i<4;i++){setProg((i+1)*25);await new Promise(r=>setTimeout(r,700))}
+    setGen(true);setGenStep('준비 중...')
+    const steps=m.mode==='bizplan'
+      ?['📋 공고 양식 분석 중...','🔍 심사기준 매칭 중...','✍️ 사업계획서 작성 중...','📊 표/데이터 생성 중...','✅ 최종 검토 중...']
+      :['🔍 입력 정보 분석 중...','✍️ AI가 작성 중...','📊 내용 구성 중...','✅ 최종 정리 중...']
+    let stepIdx=0
+    const stepInterval=setInterval(()=>{stepIdx++;if(stepIdx<steps.length){setGenStep(steps[stepIdx]);setProg(Math.min(90,((stepIdx+1)/steps.length)*100))}},8000)
+    setProg(15);setGenStep(steps[0])
+
     const inputData=collectInputData()
 
     // bizplan: 기존 사업계획서 텍스트를 추가 데이터에 포함
@@ -125,8 +134,26 @@ function Exec() {
     try{
       // user_prompt_template에 기존 계획서 내용 추가
       let enhancedPrompt=m.user_prompt_template
-      if(extraData._existing_plan){
-        enhancedPrompt+=`\n\n[기존 사업계획서 참고 내용]\n${extraData._existing_plan}\n\n※ 위 기존 계획서의 핵심 내용, 수치, 표현을 참고하여 새 양식에 맞게 재구성해주세요.`
+      if(useExistingMode&&extraData._existing_plan){
+        enhancedPrompt=`[작성 모드: 기존 사업계획서 기반 재작성]
+
+아래 기존 사업계획서의 내용을 분석하고, 이 공고의 양식과 심사기준에 맞춰 전면 재작성해주세요.
+- 기존 계획서의 핵심 아이디어, 수치, 실적, 팀 정보를 최대한 활용
+- 새 공고의 양식 구조와 순서를 정확히 따를 것
+- 심사배점이 높은 항목에 더 집중
+- 부족한 정보는 업종에 맞게 합리적으로 추정 [확인 필요]
+- 모든 주장에 근거/출처 포함 (출처 불명 시 [출처 확인 필요] 표시)
+
+[기존 사업계획서]
+${extraData._existing_plan}
+
+[사업자 정보]
+상호: {{business_name}}
+대표자: {{representative}}
+업종: {{sector}} / {{item}}
+서비스: {{service_desc}}`
+      } else if(extraData._existing_plan){
+        enhancedPrompt+=`\n\n[기존 사업계획서 참고 내용]\n${extraData._existing_plan}\n\n※ 위 기존 계획서의 핵심 내용, 수치, 표현을 참고하되, 입력된 정보를 우선하여 새 양식에 맞게 작성해주세요. 모든 주장에 근거/출처를 포함하세요 (출처 불명 시 [출처 확인 필요]).`
       }
       if(extraData._uploaded_images){
         enhancedPrompt+=`\n\n[업로드된 이미지]\n${extraData._uploaded_images}\n\n※ 위 이미지를 적절한 위치에 [이미지 삽입: 파일명] 마커로 포함해주세요.`
@@ -134,12 +161,15 @@ function Exec() {
 
       const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:enhancedPrompt,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:extraData})})
       const result=await res.json()
-      if(!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));setGen(false);return}
+      clearInterval(stepInterval)
+      if(!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));setGen(false);setGenStep('');return}
+      setGenStep('💾 저장 중...');setProg(95)
       await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:result.result,output_format:m.default_format||'pdf',credits_used:0,input_tokens:result.usage?.input_tokens,output_tokens:result.usage?.output_tokens,ai_model:m.ai_model,generation_time_ms:result.usage?.generation_time_ms})
       await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
       sessionStorage.setItem('lastResult',result.result);sessionStorage.setItem('lastModule',JSON.stringify(m))
+      setProg(100);setGenStep('✅ 완료!')
       router.push('/preview?id='+m.id)
-    }catch(e){alert('생성 실패');setGen(false)}
+    }catch(e){clearInterval(stepInterval);alert('생성 실패');setGen(false);setGenStep('')}
   }
 
   // 유료 모듈: 토스 결제 시작
@@ -191,7 +221,19 @@ function Exec() {
       <button onClick={()=>router.push('/market')} className="text-[12.5px] hover:opacity-70 mb-3 inline-block" style={{color:'var(--text-muted)'}}>← 마켓</button>
       <div className="rounded-[10px] p-5 mb-3 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0" style={{background:modeBg(m.mode)}}>{m.icon||'📄'}</div><div className="flex-1"><div className="flex items-center gap-2 mb-0.5"><span className="text-[15px] font-bold">{m.name}</span><span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border" style={modeStyle(m.mode)}>{ML[m.mode]||m.mode}</span></div><div className="text-[12px]" style={{color:'var(--text-muted)'}}>{fmtPrice(price)} · {m.category}</div></div></div></div>
 
-      {(gen||paying)?<div className="rounded-[10px] p-10 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="spinner mx-auto mb-3.5"/><p className="text-[13.5px] font-medium">{paying?'결제 준비 중...':'AI 에이전트 실행 중...'}</p>{gen&&<div className="mt-3.5 rounded h-[3px] max-w-[280px] mx-auto overflow-hidden" style={{background:'var(--surface-hover)'}}><div className="h-full rounded transition-all duration-500" style={{width:prog+'%',background:'var(--accent)'}}/></div>}</div>
+      {(gen||paying)?<div className="rounded-[10px] p-10 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+        <div className="spinner mx-auto mb-4"/>
+        <p className="text-[14px] font-semibold mb-1">{paying?'결제 준비 중...':'AI 에이전트 실행 중'}</p>
+        {gen&&<>
+          <p className="text-[13px] mb-4" style={{color:'var(--accent)'}}>{genStep}</p>
+          <div className="mt-2 rounded-full h-[4px] max-w-[300px] mx-auto overflow-hidden" style={{background:'var(--surface-hover)'}}>
+            <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{width:prog+'%',background:'var(--accent)'}}/>
+          </div>
+          <p className="text-[11px] mt-3" style={{color:'var(--text-muted)'}}>
+            {m?.mode==='bizplan'?'사업계획서는 약 1~2분 소요됩니다. 잠시만 기다려주세요.':'보통 30초~1분 소요됩니다.'}
+          </p>
+        </>}
+      </div>
 
       :isChat?<div className="rounded-[10px] overflow-hidden border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="flex flex-col h-[400px]">
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">{msgs.map((msg,i)=><div key={i} className={`max-w-[82%] px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed ${msg.type==='ai'?'rounded-bl-sm self-start':'font-medium rounded-br-sm self-end'}`} style={msg.type==='ai'?{background:'var(--surface-hover)',color:'var(--text-secondary)'}:{background:'var(--accent)',color:'var(--bg)'}}>{msg.text}</div>)}</div>
@@ -199,11 +241,37 @@ function Exec() {
       </div></div>
 
       :showInputForm?<div className="space-y-3">
-        <div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-          <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>입력 정보</p>
-          <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
-          {renderFormFields(autoFields)}
-        </div>
+        {/* bizplan: 작성 모드 선택 */}
+        {m?.mode==='bizplan'&&<div className="flex gap-2 mb-1">
+          <button onClick={()=>setUseExistingMode(false)} className="flex-1 py-2.5 rounded-lg text-[13px] font-medium border transition-all" style={!useExistingMode?{background:'var(--accent-bg)',color:'var(--accent)',borderColor:'var(--accent-border)'}:{borderColor:'var(--border)',color:'var(--text-muted)'}}>직접 입력</button>
+          <button onClick={()=>setUseExistingMode(true)} className="flex-1 py-2.5 rounded-lg text-[13px] font-medium border transition-all" style={useExistingMode?{background:'var(--accent-bg)',color:'var(--accent)',borderColor:'var(--accent-border)'}:{borderColor:'var(--border)',color:'var(--text-muted)'}}>기존 계획서 기반</button>
+        </div>}
+
+        {useExistingMode?(
+          <div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>기존 사업계획서 업로드</p>
+            <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>기존 사업계획서를 업로드하면 AI가 이 공고의 양식과 심사기준에 맞춰 전면 재작성합니다.</p>
+            {existingPlan?(
+              <div className="flex items-center gap-2 p-3 rounded-lg border" style={{background:'var(--surface-input)',borderColor:'var(--border)'}}>
+                <span>📄</span><span className="flex-1 text-[12px]">{existingPlan.name} <span style={{color:'var(--text-muted)'}}>({(existingPlan.size/1024).toFixed(0)}KB)</span></span>
+                <button onClick={()=>setExistingPlan(null)} className="text-[11px]" style={{color:'var(--error-text)'}}>삭제</button>
+              </div>
+            ):(
+              <label className="block p-6 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--accent-border)'}}>
+                <span className="text-2xl">📄</span>
+                <p className="text-[12px] mt-1 font-medium" style={{color:'var(--accent)'}}>기존 사업계획서 업로드</p>
+                <p className="text-[10px] mt-0.5" style={{color:'var(--text-muted)'}}>PDF, DOCX, TXT (필수)</p>
+                <input type="file" accept=".pdf,.docx,.txt,.hwp" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
+              </label>
+            )}
+          </div>
+        ):(
+          <div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+            <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>입력 정보</p>
+            <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
+            {renderFormFields(autoFields)}
+          </div>
+        )}
         {/* bizplan 파일 업로드 */}
         {m?.mode==='bizplan'&&<div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>참고 자료 업로드 (선택)</p>
