@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 function Pv() {
   const params=useSearchParams();const router=useRouter();const{user}=useAuth()
   const id=params.get('id')||''
+  const purchased=params.get('purchased')==='true'
   const[m,setM]=useState<any>(null);const[result,setResult]=useState('');const[chains,setChains]=useState<any[]>([]);const[fmt,setFmt]=useState('pdf');const[ld,setLd]=useState(true)
   const[editing,setEditing]=useState(false);const[editText,setEditText]=useState('');const[saving,setSaving]=useState(false)
   const[genId,setGenId]=useState('');const[regenCount,setRegenCount]=useState(0);const[regenerating,setRegenerating]=useState(false);const[regenProg,setRegenProg]=useState(0)
@@ -20,9 +21,13 @@ function Pv() {
         if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
         // bizplan 모듈: 결제 여부 확인
         if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
-          supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
-            setIsLocked(!pays||pays.length===0)
-          })
+          if(purchased){
+            setIsLocked(false) // 결제 직후 돌아온 경우
+          } else {
+            supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
+              setIsLocked(!pays||pays.length===0)
+            })
+          }
         }
       }
       const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
@@ -55,7 +60,7 @@ function Pv() {
         amount:{currency:'KRW',value:m.price_krw},
         orderId,
         orderName:m.name,
-        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}`,
+        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&returnTo=/preview?id=${m.id}%26purchased=true`,
         failUrl:`${appUrl}/api/payment/fail`,
       })
     }catch(e:any){
@@ -173,9 +178,11 @@ function Pv() {
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div><h2 className="text-[17px] font-bold">{m.icon} {m.name}</h2><p className="text-[12px]" style={{color:'var(--text-muted)'}}>{m.category}</p></div>
         <div className="flex gap-1.5 flex-wrap">
-          <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{(m.output_formats||['pdf']).map((f:string)=><option key={f}>{f.toUpperCase()}</option>)}</select>
-          <button onClick={dl} className="px-3 py-1.5 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>다운로드</button>
-          {!editing?<button onClick={startEdit} className="px-3 py-1.5 rounded-md text-[12px] border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>수정하기</button>
+          {!isLocked&&<>
+            <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{(m.output_formats||['pdf']).map((f:string)=><option key={f}>{f.toUpperCase()}</option>)}</select>
+            <button onClick={dl} className="px-3 py-1.5 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>다운로드</button>
+          </>}
+          {!isLocked&&!editing?<button onClick={startEdit} className="px-3 py-1.5 rounded-md text-[12px] border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>수정하기</button>
           :<><button onClick={saveEdit} disabled={saving} className="px-3 py-1.5 font-semibold text-[12px] rounded-md disabled:opacity-50" style={{background:'#5B8DEF',color:'white'}}>{saving?'저장 중...':'수정 완료'}</button>
           <button onClick={cancelEdit} className="px-3 py-1.5 rounded-md text-[12px] border" style={{borderColor:'var(--border-strong)',color:'var(--text-muted)'}}>취소</button></>}
           <button onClick={handleRegen} disabled={regenerating} className="px-3 py-1.5 border rounded-md text-[12px] disabled:opacity-50 hover:opacity-80" style={isFreeRegen?{borderColor:'var(--accent-border)',color:'var(--accent)'}:{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
@@ -186,11 +193,15 @@ function Pv() {
 
       {regenerating&&<div className="rounded-[10px] p-6 mb-3 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="spinner mx-auto mb-2.5"/><p className="text-[13px] font-medium">재생성 중...</p><div className="mt-2.5 rounded h-[3px] max-w-[240px] mx-auto overflow-hidden" style={{background:'var(--surface-hover)'}}><div className="h-full rounded transition-all duration-500" style={{width:regenProg+'%',background:'var(--accent)'}}/></div></div>}
 
+      {/* A4 문서 스타일 미리보기 */}
       <div className="rounded-[10px] overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
-        <div className="flex items-center gap-2 px-3.5 py-2 border-b" style={{background:'var(--surface-hover)',borderColor:'var(--border)'}}>
-          <div className="flex gap-1"><span className="w-2 h-2 rounded-full bg-[#FF5F57]"/><span className="w-2 h-2 rounded-full bg-[#FEBC2E]"/><span className="w-2 h-2 rounded-full bg-[#28C840]"/></div>
-          <div className="flex-1 rounded px-2.5 py-1 text-[11px] font-mono border" style={{background:'var(--surface-input)',borderColor:'var(--border)',color:'var(--text-muted)'}}>{m.id.toLowerCase()}-output.{fmt}</div>
-          {editing&&<span className="text-[10px] font-semibold" style={{color:'#5B8DEF'}}>편집 모드</span>}
+        <div className="flex items-center justify-between px-3.5 py-2 border-b" style={{background:'var(--surface-hover)',borderColor:'var(--border)'}}>
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-medium" style={{color:'var(--text-secondary)'}}>📄 {m.name}</span>
+            {editing&&<span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{background:'rgba(91,141,239,0.1)',color:'#5B8DEF'}}>편집 중</span>}
+            {isLocked&&<span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{background:'var(--error-bg)',color:'var(--error-text)'}}>🔒 잠김</span>}
+          </div>
+          <span className="text-[10px]" style={{color:'var(--text-muted)'}}>{isLocked?'결제 후 전체 보기':'A4 미리보기'}</span>
         </div>
         {editing?<textarea ref={textareaRef} value={editText} onChange={e=>{setEditText(e.target.value);if(textareaRef.current){textareaRef.current.style.height='auto';textareaRef.current.style.height=textareaRef.current.scrollHeight+'px'}}} className="w-full min-h-[320px] sm:min-h-[480px] p-7 text-[13.5px] leading-[1.8] font-mono resize-none outline-none" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} spellCheck={false}/>
         :isLocked?(

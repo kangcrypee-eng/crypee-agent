@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
   const amount = searchParams.get('amount')
   const moduleId = searchParams.get('moduleId')
   const userId = searchParams.get('userId')
+  const returnTo = searchParams.get('returnTo')
   const inputDataStr = searchParams.get('inputData')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
 
@@ -45,6 +46,11 @@ export async function GET(request: NextRequest) {
     user_id: userId, module_id: moduleId, order_id: orderId,
     payment_key: paymentKey, amount: Number(amount), status: 'paid', paid_at: new Date().toISOString(),
   })
+
+  // returnTo가 있으면 AI 생성 없이 바로 리다이렉트 (bizplan 잠금 해제 등)
+  if (returnTo) {
+    return NextResponse.redirect(`${appUrl}${returnTo}`)
+  }
 
   // 3. AI 생성
   const { data: mod } = await supabase.from('modules').select('*').eq('id', moduleId).single()
