@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
-const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림'}
+const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림',bizplan:'📋 사업계획서'}
 
 const PROFILE_FIELDS = new Set(['business_name','representative','business_number','business_type','sector','item','service_desc','target_customer','track_record','address','phone','email'])
 
@@ -85,11 +85,12 @@ function Exec() {
   const handleExecute=async()=>{
     if(!m||!user)return
     const price=m.price_krw||0
-    if(price===0){
-      // 무료 모듈: 직접 생성
+    if(m.mode==='bizplan'){
+      // 사업계획서: 먼저 무료 생성 → preview에서 부분 공개 → 결제
+      await generateDirect()
+    } else if(price===0){
       await generateDirect()
     } else {
-      // 유료 모듈: 토스 결제
       await startPayment(price)
     }
   }

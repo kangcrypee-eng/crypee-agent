@@ -85,7 +85,10 @@ export default function AdminPage() {
           <h2 className="text-xl font-bold">어드민</h2>
           <p className="text-[13px]" style={{color:'var(--text-muted)'}}>대시보드 · 모듈 관리 · 구독자</p>
         </div>
-        <button onClick={() => router.push('/admin/upload')} className="px-5 py-2.5 font-semibold text-[13px] rounded-lg hover:opacity-90" style={{background:'var(--accent)',color:'var(--bg)'}}>+ 새 모듈 생성</button>
+        <div className="flex gap-2">
+          <button onClick={() => router.push('/admin/bizplan')} className="px-4 py-2.5 font-semibold text-[13px] rounded-lg hover:opacity-90 border" style={{borderColor:'var(--accent-border)',color:'var(--accent)'}}>📋 사업계획서 모듈</button>
+          <button onClick={() => router.push('/admin/upload')} className="px-5 py-2.5 font-semibold text-[13px] rounded-lg hover:opacity-90" style={{background:'var(--accent)',color:'var(--bg)'}}>+ 새 모듈 생성</button>
+        </div>
       </div>
 
       {/* 탭 */}

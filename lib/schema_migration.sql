@@ -9,7 +9,7 @@ UPDATE modules SET price_krw = credit_cost * 990 WHERE price_krw = 0 OR price_kr
 
 -- mode 제약조건 확장 (alert 추가)
 ALTER TABLE modules DROP CONSTRAINT IF EXISTS modules_mode_check;
-ALTER TABLE modules ADD CONSTRAINT modules_mode_check CHECK (mode IN ('oneclick', 'form', 'chat', 'alert'));
+ALTER TABLE modules ADD CONSTRAINT modules_mode_check CHECK (mode IN ('oneclick', 'form', 'chat', 'alert', 'bizplan'));
 
 -- output_mode 제약조건 확장 (automation 추가)
 ALTER TABLE modules DROP CONSTRAINT IF EXISTS modules_output_mode_check;

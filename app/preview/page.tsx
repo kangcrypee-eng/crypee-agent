@@ -10,11 +10,21 @@ function Pv() {
   const[m,setM]=useState<any>(null);const[result,setResult]=useState('');const[chains,setChains]=useState<any[]>([]);const[fmt,setFmt]=useState('pdf');const[ld,setLd]=useState(true)
   const[editing,setEditing]=useState(false);const[editText,setEditText]=useState('');const[saving,setSaving]=useState(false)
   const[genId,setGenId]=useState('');const[regenCount,setRegenCount]=useState(0);const[regenerating,setRegenerating]=useState(false);const[regenProg,setRegenProg]=useState(0)
+  const[isLocked,setIsLocked]=useState(false);const[unlocking,setUnlocking]=useState(false)
   const textareaRef=useRef<HTMLTextAreaElement>(null)
 
   useEffect(()=>{
     supabase.from('modules').select('*').eq('id',id).single().then(({data:mod})=>{
-      if(mod){setM(mod);setFmt(mod.default_format||'pdf');if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})}
+      if(mod){
+        setM(mod);setFmt(mod.default_format||'pdf')
+        if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
+        // bizplan 모듈: 결제 여부 확인
+        if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
+          supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
+            setIsLocked(!pays||pays.length===0)
+          })
+        }
+      }
       const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
     })
     // 최근 generation 정보 가져오기 (재생성 카운트용)
@@ -24,6 +34,32 @@ function Pv() {
       })
     }
   },[id,user])
+
+  // bizplan 결제 → 잠금 해제
+  const handleUnlock=async()=>{
+    if(!m||!user)return
+    setUnlocking(true)
+    try{
+      const clientKey=process.env.NEXT_PUBLIC_TOSS_CK||''
+      if(!clientKey){alert('결제 시스템이 아직 설정되지 않았습니다.');setIsLocked(false);setUnlocking(false);return}
+      const{loadTossPayments}=await import('@tosspayments/tosspayments-sdk')
+      const tossPayments=await loadTossPayments(clientKey)
+      const payment=tossPayments.payment({customerKey:user.id})
+      const orderId=`bp-${user.id.substring(0,8)}-${Date.now()}`
+      const appUrl=process.env.NEXT_PUBLIC_APP_URL||window.location.origin
+      await payment.requestPayment({
+        method:'CARD',
+        amount:{currency:'KRW',value:m.price_krw},
+        orderId,
+        orderName:m.name,
+        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&unlock=true`,
+        failUrl:`${appUrl}/api/payment/fail`,
+      })
+    }catch(e:any){
+      if(e?.code!=='USER_CANCEL')alert('결제 오류: '+(e?.message||''))
+    }
+    setUnlocking(false)
+  }
 
   const startEdit=()=>{setEditText(result);setEditing(true);setTimeout(()=>{if(textareaRef.current){textareaRef.current.style.height='auto';textareaRef.current.style.height=textareaRef.current.scrollHeight+'px'}},50)}
   const cancelEdit=()=>{setEditing(false);setEditText('')}
@@ -105,6 +141,19 @@ function Pv() {
           {editing&&<span className="text-[10px] font-semibold" style={{color:'#5B8DEF'}}>편집 모드</span>}
         </div>
         {editing?<textarea ref={textareaRef} value={editText} onChange={e=>{setEditText(e.target.value);if(textareaRef.current){textareaRef.current.style.height='auto';textareaRef.current.style.height=textareaRef.current.scrollHeight+'px'}}} className="w-full min-h-[320px] sm:min-h-[480px] p-7 text-[13.5px] leading-[1.8] font-mono resize-none outline-none" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} spellCheck={false}/>
+        :isLocked?(
+          <div className="relative">
+            <div className="p-7 text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)',maxHeight:'400px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result.substring(0,1500))+'</p>'}}/>
+            <div className="absolute bottom-0 left-0 right-0 h-[200px]" style={{background:'linear-gradient(transparent, var(--preview-bg) 70%)'}}/>
+            <div className="absolute bottom-0 left-0 right-0 p-8 text-center">
+              <p className="text-[14px] font-semibold mb-2" style={{color:'var(--preview-text)'}}>전체 결과물을 확인하세요</p>
+              <p className="text-[12px] mb-4" style={{color:'#888'}}>결제 후 전체 내용 열람 + 편집 + 다운로드가 가능합니다.</p>
+              <button onClick={handleUnlock} disabled={unlocking} className="px-6 py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{background:'var(--accent)',color:'white'}}>
+                {unlocking?'처리 중...':`전체 보기 · ₩${(m.price_krw||0).toLocaleString()}`}
+              </button>
+            </div>
+          </div>
+        )
         :<div className="p-7 min-h-[320px] sm:min-h-[480px] text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result)+'</p>'}}/>}
       </div>
       {chains.length>0&&<div className="rounded-[10px] p-4 mt-3 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-muted)'}}>🔗 연결 모듈</p><div className="flex gap-1.5 flex-wrap">{chains.map(c=><button key={c.id} onClick={()=>router.push('/execute?id='+c.id)} className="px-3 py-1.5 border rounded-md text-[12px]" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>{c.icon} {c.name}</button>)}</div></div>}

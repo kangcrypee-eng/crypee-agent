@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { categories } from '@/lib/modules'
 
-const ML:Record<string,string> = {oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림'}
+const ML:Record<string,string> = {oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림',bizplan:'📋 사업계획서'}
 
 const render=(t:string)=>t.replace(/^### (.+)$/gm,'<h3 style="font-size:13px;font-weight:600;color:#333;margin:10px 0 4px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="font-size:15px;font-weight:600;color:#222;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8e8e8">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px">$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin-bottom:8px">').replace(/\n/g,'<br>')
 
