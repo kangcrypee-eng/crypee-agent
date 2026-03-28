@@ -203,7 +203,9 @@ ${extraData._existing_plan}
       console.log('extraData._existing_plan 길이:', extraData._existing_plan?.length || 0)
 
       setGenStep(m.mode==='bizplan'?'✍️ 사업계획서 작성 중... (약 1~2분)':'✍️ AI가 작성 중...');setProg(20)
-      const fullText=await callGenerate(enhancedPrompt,m.system_prompt,inputData,extraData)
+      // useExistingMode: 프로필 데이터를 보내지 않음 (기존 계획서 내용만 사용)
+      const genProfileData=useExistingMode?{}:inputData
+      const fullText=await callGenerate(enhancedPrompt,m.system_prompt,genProfileData,extraData)
       if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
 
       setGenStep('💾 저장 중...');setProg(95)
