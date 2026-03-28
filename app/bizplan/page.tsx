@@ -7,7 +7,7 @@ type Step = 'upload' | 'analysis' | 'input' | 'generating'
 
 export default function BizplanPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const [step, setStep] = useState<Step>('upload')
 
   // Step 1: 파일
@@ -27,7 +27,8 @@ export default function BizplanPage() {
   const [currentStatus, setCurrentStatus] = useState('')
   const [emphasis, setEmphasis] = useState('')
 
-  useEffect(() => { if (!user) router.push('/login') }, [user])
+  useEffect(() => { if (!loading && !user) router.push('/login') }, [user, loading])
+  if (loading) return <div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
 
   // Step 1 → 2: 파일 업로드 + 분석
   const handleAnalyze = async () => {
