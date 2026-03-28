@@ -301,7 +301,7 @@ ${m.user_prompt_template||''}`
                 <span className="text-2xl">📄</span>
                 <p className="text-[12px] mt-1 font-medium" style={{color:'var(--accent)'}}>기존 사업계획서 업로드</p>
                 <p className="text-[10px] mt-0.5" style={{color:'var(--text-muted)'}}>PDF, DOCX, TXT (필수)</p>
-                <input type="file" accept=".pdf,.docx,.txt,.hwp" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
+                <input type="file" accept=".pdf,.docx,.txt,.hwp,.hwpx" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
               </label>
             )}
           </div>
@@ -328,7 +328,7 @@ ${m.user_prompt_template||''}`
               <label className="block p-4 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--border-strong)'}}>
                 <span className="text-lg opacity-40">📎</span>
                 <p className="text-[10px]" style={{color:'var(--text-muted)'}}>이전에 작성한 사업계획서 (PDF, DOCX, TXT)</p>
-                <input type="file" accept=".pdf,.docx,.txt,.hwp" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
+                <input type="file" accept=".pdf,.docx,.txt,.hwp,.hwpx" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
               </label>
             )}
           </div>
