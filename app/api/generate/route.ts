@@ -5,7 +5,7 @@ export const maxDuration = 60
 export async function POST(request: NextRequest) {
   const start = Date.now()
   try {
-    const { moduleId, systemPrompt, userPrompt, aiModel, maxTokens, temperature, profileData, additionalData } = await request.json()
+    const { moduleId, systemPrompt, userPrompt, aiModel, maxTokens, temperature, profileData, additionalData, stream: useStream } = await request.json()
     let fullPrompt = userPrompt || ''
     const allData = { ...profileData, ...additionalData }
     for (const [key, value] of Object.entries(allData)) {
@@ -15,24 +15,72 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
-      return NextResponse.json({ success: true, result: `[시뮬레이션 모드]\n\nAPI 키가 설정되지 않았습니다.\n모듈: ${moduleId}\n모델: ${aiModel}\n\n.env.local에 ANTHROPIC_API_KEY를 추가하면 실제 AI 생성이 작동합니다.\n\n--- 전달된 프롬프트 ---\n${fullPrompt.substring(0, 500)}...`, usage: { input_tokens: 0, output_tokens: 0, model: aiModel, generation_time_ms: Date.now()-start } })
+      return NextResponse.json({ success: true, result: `[시뮬레이션 모드]\nAPI 키 미설정. 모듈: ${moduleId}`, usage: { input_tokens: 0, output_tokens: 0, model: aiModel, generation_time_ms: 0 } })
     }
 
     const model = aiModel || 'claude-sonnet-4-6'
+    const body = { model, max_tokens: maxTokens || 4096, temperature: temperature ?? 0.3, system: systemPrompt || '', messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model, max_tokens: maxTokens || 4096, temperature: temperature ?? 0.3, system: systemPrompt || '', messages: [{ role: 'user', content: fullPrompt }] }),
+      body: JSON.stringify(body),
     })
 
-    const data = await res.json()
+    // 스트리밍 모드
+    if (useStream) {
+      if (!res.ok || !res.body) {
+        const errData = await res.json().catch(() => ({}))
+        return NextResponse.json({ success: false, error: (errData as any).error?.message || `API ${res.status}` }, { status: 502 })
+      }
 
-    if (!res.ok || data.error) {
-      const errMsg = data.error?.message || `API ${res.status}: ${res.statusText}`
-      console.error('Anthropic API error:', { status: res.status, error: data.error, model, moduleId })
-      return NextResponse.json({ success: false, error: errMsg }, { status: 502 })
+      // SSE 스트림을 클라이언트로 전달
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+
+      const stream = new ReadableStream({
+        async start(controller) {
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              const chunk = decoder.decode(value, { stream: true })
+              // SSE 이벤트에서 텍스트 추출
+              const lines = chunk.split('\n')
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6)
+                  if (data === '[DONE]') continue
+                  try {
+                    const parsed = JSON.parse(data)
+                    if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+                      controller.enqueue(new TextEncoder().encode(parsed.delta.text))
+                    }
+                    if (parsed.type === 'message_stop') {
+                      // 마지막에 메타데이터 전송
+                      controller.enqueue(new TextEncoder().encode(`\n\n<!--USAGE:${JSON.stringify({ input_tokens: parsed.usage?.input_tokens || 0, output_tokens: parsed.usage?.output_tokens || 0, model, generation_time_ms: Date.now() - start })}-->`))
+                    }
+                  } catch {}
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Stream error:', e)
+          }
+          controller.close()
+        }
+      })
+
+      return new Response(stream, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Transfer-Encoding': 'chunked' },
+      })
     }
 
+    // 일반 모드 (기존)
+    const data = await res.json()
+    if (!res.ok || data.error) {
+      return NextResponse.json({ success: false, error: data.error?.message || `API ${res.status}` }, { status: 502 })
+    }
     const result = (data.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n')
     return NextResponse.json({ success: true, result, usage: { input_tokens: data.usage?.input_tokens || 0, output_tokens: data.usage?.output_tokens || 0, model, generation_time_ms: Date.now() - start } })
   } catch (error: any) {

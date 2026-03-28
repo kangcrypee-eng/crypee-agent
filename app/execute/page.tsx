@@ -159,14 +159,43 @@ ${extraData._existing_plan}
         enhancedPrompt+=`\n\n[업로드된 이미지]\n${extraData._uploaded_images}\n\n※ 위 이미지를 적절한 위치에 [이미지 삽입: 파일명] 마커로 포함해주세요.`
       }
 
-      const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:enhancedPrompt,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:extraData})})
-      const result=await res.json()
+      // 스트리밍 모드로 호출
+      const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:enhancedPrompt,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:extraData,stream:true})})
+
       clearInterval(stepInterval)
-      if(!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));setGen(false);setGenStep('');return}
+
+      if(!res.ok){
+        const err=await res.json().catch(()=>({error:'생성 실패'}))
+        alert('생성 실패: '+(err.error||'알 수 없는 오류'));setGen(false);setGenStep('');return
+      }
+
+      // 스트림 읽기
+      setGenStep('✍️ AI가 작성 중...');setProg(50)
+      const reader=res.body?.getReader()
+      const decoder=new TextDecoder()
+      let fullText=''
+
+      if(reader){
+        while(true){
+          const{done,value}=await reader.read()
+          if(done)break
+          const chunk=decoder.decode(value,{stream:true})
+          fullText+=chunk
+          // 진행률 업데이트 (글자 수 기반)
+          setProg(Math.min(90,50+(fullText.length/5000)*40))
+        }
+      }
+
+      // 메타데이터 분리 (있으면)
+      const usageMeta=fullText.match(/<!--USAGE:(.*?)-->/)
+      if(usageMeta)fullText=fullText.replace(usageMeta[0],'').trim()
+
+      if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
+
       setGenStep('💾 저장 중...');setProg(95)
-      await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:result.result,output_format:m.default_format||'pdf',credits_used:0,input_tokens:result.usage?.input_tokens,output_tokens:result.usage?.output_tokens,ai_model:m.ai_model,generation_time_ms:result.usage?.generation_time_ms})
+      await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:m.ai_model})
       await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
-      sessionStorage.setItem('lastResult',result.result);sessionStorage.setItem('lastModule',JSON.stringify(m))
+      sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
       setProg(100);setGenStep('✅ 완료!')
       router.push('/preview?id='+m.id)
     }catch(e){clearInterval(stepInterval);alert('생성 실패');setGen(false);setGenStep('')}
