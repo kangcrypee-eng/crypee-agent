@@ -166,7 +166,33 @@ p{margin:6px 0}
       const b=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=m.name+'.'+fmt;a.click()
     }
   }
-  const render=(t:string)=>t.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin-bottom:10px">').replace(/\n/g,'<br>')
+  const render=(t:string)=>{
+    // 마크다운 테이블 → HTML 테이블 변환
+    let html=t.replace(/(\|.+\|\n)+/g,(block)=>{
+      const rows=block.trim().split('\n').filter(r=>!r.match(/^\|[\s:-]+\|$/))
+      if(rows.length===0)return block
+      let table='<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px">'
+      rows.forEach((row,i)=>{
+        const cells=row.split('|').filter(c=>c.trim()!=='')
+        const tag=i===0?'th':'td'
+        const style=i===0?'background:#f5f5f5;font-weight:600;':'';
+        table+='<tr>'+cells.map(c=>`<${tag} style="border:1px solid #ddd;padding:8px 10px;${style}">${c.trim()}</${tag}>`).join('')+'</tr>'
+      })
+      return table+'</table>'
+    })
+    // 구분선
+    html=html.replace(/━+/g,'<hr style="border:none;border-top:2px solid #333;margin:16px 0">')
+    // 헤딩
+    html=html.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>')
+    html=html.replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>')
+    html=html.replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>')
+    // 볼드
+    html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    // 단락
+    html=html.replace(/\n\n/g,'</p><p style="margin-bottom:10px">')
+    html=html.replace(/\n/g,'<br>')
+    return html
+  }
 
   if(ld)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
   if(!m)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>모듈 없음</div>
@@ -183,12 +209,14 @@ p{margin:6px 0}
             <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{(m.output_formats||['pdf']).map((f:string)=><option key={f}>{f.toUpperCase()}</option>)}</select>
             <button onClick={dl} className="px-3 py-1.5 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>다운로드</button>
           </>}
-          {!isLocked&&!editing?<button onClick={startEdit} className="px-3 py-1.5 rounded-md text-[12px] border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>수정하기</button>
-          :<><button onClick={saveEdit} disabled={saving} className="px-3 py-1.5 font-semibold text-[12px] rounded-md disabled:opacity-50" style={{background:'#5B8DEF',color:'white'}}>{saving?'저장 중...':'수정 완료'}</button>
-          <button onClick={cancelEdit} className="px-3 py-1.5 rounded-md text-[12px] border" style={{borderColor:'var(--border-strong)',color:'var(--text-muted)'}}>취소</button></>}
-          <button onClick={handleRegen} disabled={regenerating} className="px-3 py-1.5 border rounded-md text-[12px] disabled:opacity-50 hover:opacity-80" style={isFreeRegen?{borderColor:'var(--accent-border)',color:'var(--accent)'}:{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
+          {!isLocked&&(editing
+            ?<><button onClick={saveEdit} disabled={saving} className="px-3 py-1.5 font-semibold text-[12px] rounded-md disabled:opacity-50" style={{background:'#5B8DEF',color:'white'}}>{saving?'저장 중...':'수정 완료'}</button>
+              <button onClick={cancelEdit} className="px-3 py-1.5 rounded-md text-[12px] border" style={{borderColor:'var(--border-strong)',color:'var(--text-muted)'}}>취소</button></>
+            :<button onClick={startEdit} className="px-3 py-1.5 rounded-md text-[12px] border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>수정하기</button>
+          )}
+          {!isLocked&&<button onClick={handleRegen} disabled={regenerating} className="px-3 py-1.5 border rounded-md text-[12px] disabled:opacity-50 hover:opacity-80" style={isFreeRegen?{borderColor:'var(--accent-border)',color:'var(--accent)'}:{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
             {regenerating?'생성 중...':isFreeRegen?'🔄 재생성 (1회 무료)':`🔄 재생성 · ₩${(m.price_krw||0).toLocaleString()}`}
-          </button>
+          </button>}
         </div>
       </div>
 
