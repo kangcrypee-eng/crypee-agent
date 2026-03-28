@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { extractText as extractPdfText } from 'unpdf'
+import { getDocumentProxy } from 'unpdf'
 
 export const maxDuration = 30
+
+async function extractPdfText(data: Uint8Array): Promise<{ text: string; pages: number }> {
+  // unpdf의 getDocumentProxy로 직접 접근 — CMap 옵션 포함
+  const doc = await getDocumentProxy(data, {
+    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/cmaps/',
+    cMapPacked: true,
+    useSystemFonts: true,
+  })
+
+  const pages: string[] = []
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const content = await page.getTextContent()
+    const pageText = content.items
+      .filter((item: any) => item.str !== undefined)
+      .map((item: any) => item.str)
+      .join(' ')
+    if (pageText.trim()) pages.push(pageText.trim())
+  }
+
+  return { text: pages.join('\n\n'), pages: doc.numPages }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,28 +32,23 @@ export async function POST(request: NextRequest) {
     if (!file) return NextResponse.json({ error: '파일이 없습니다' }, { status: 400 })
 
     const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    console.log('Extract text:', file.name, buffer.length, 'bytes')
+    console.log('Extract text:', file.name, Buffer.from(arrayBuffer).length, 'bytes')
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        const result = await extractPdfText(new Uint8Array(arrayBuffer))
-        const totalPages = result.totalPages || 0
-        const rawText = Array.isArray(result.text) ? result.text.join('\n') : (result.text || '')
-        const cleaned = rawText.trim()
-        console.log('PDF parsed:', totalPages, 'pages,', cleaned.length, 'chars')
-        if (!cleaned) {
-          return NextResponse.json({ success: true, text: '', pages: totalPages, warning: '텍스트를 추출할 수 없습니다. 스캔 이미지 PDF일 수 있습니다.' })
+        const { text, pages } = await extractPdfText(new Uint8Array(arrayBuffer))
+        console.log('PDF parsed:', pages, 'pages,', text.length, 'chars')
+        if (!text) {
+          return NextResponse.json({ success: true, text: '', pages, warning: '텍스트를 추출할 수 없습니다.' })
         }
-        return NextResponse.json({ success: true, text: cleaned, pages: totalPages })
+        return NextResponse.json({ success: true, text, pages })
       } catch (pdfErr: any) {
         console.error('PDF parse error:', pdfErr)
         return NextResponse.json({ error: 'PDF 파싱 실패: ' + (pdfErr.message || '알 수 없는 오류') }, { status: 400 })
       }
     }
 
-    // txt, docx 등은 텍스트로
-    const text = buffer.toString('utf-8')
+    const text = Buffer.from(arrayBuffer).toString('utf-8')
     return NextResponse.json({ success: true, text })
   } catch (e: any) {
     console.error('Extract text error:', e)

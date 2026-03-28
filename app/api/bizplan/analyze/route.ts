@@ -75,19 +75,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '공고문과 양식 파일을 모두 업로드해주세요' }, { status: 400 })
     }
 
-    // PDF 텍스트 추출 (unpdf 사용)
-    const { extractText: extractPdfText } = await import('unpdf')
+    // PDF 텍스트 추출 (unpdf + CMap CDN for Korean CIDFont)
+    const { getDocumentProxy } = await import('unpdf')
     const extractText = async (file: File): Promise<string> => {
       const arrayBuffer = await file.arrayBuffer()
-
       if (file.name.toLowerCase().endsWith('.pdf')) {
         try {
-          const result = await extractPdfText(new Uint8Array(arrayBuffer))
-          const text = Array.isArray(result.text) ? result.text.join('\n') : (result.text || '')
-          return text
-        } catch {
-          return Buffer.from(arrayBuffer).toString('utf-8')
-        }
+          const doc = await getDocumentProxy(new Uint8Array(arrayBuffer), {
+            cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/cmaps/',
+            cMapPacked: true, useSystemFonts: true,
+          })
+          const pages: string[] = []
+          for (let i = 1; i <= doc.numPages; i++) {
+            const page = await doc.getPage(i)
+            const content = await page.getTextContent()
+            pages.push(content.items.filter((it: any) => it.str !== undefined).map((it: any) => it.str).join(' '))
+          }
+          return pages.join('\n\n')
+        } catch { return Buffer.from(arrayBuffer).toString('utf-8') }
       }
       return Buffer.from(arrayBuffer).toString('utf-8')
     }
