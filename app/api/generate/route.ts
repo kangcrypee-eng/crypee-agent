@@ -22,18 +22,6 @@ export async function POST(request: NextRequest) {
     const model = isBP ? 'claude-sonnet-4-6' : (aiModel || 'claude-sonnet-4-6')
     const baseMaxTokens = isBP ? 16384 : (maxTokens || 4096)
     const sysPrompt = systemPrompt || ''
-
-    // 디버그: AI에 전달되는 프롬프트 확인
-    console.log('=== GENERATE DEBUG ===')
-    console.log('moduleId:', moduleId)
-    console.log('fullPrompt length:', fullPrompt.length)
-    console.log('fullPrompt first 300:', fullPrompt.substring(0, 300))
-    console.log('fullPrompt contains 다움랩스:', fullPrompt.includes('다움랩스'))
-    console.log('fullPrompt contains 크리피:', fullPrompt.includes('크리피'))
-    console.log('fullPrompt contains 쪽파:', fullPrompt.includes('쪽파'))
-    console.log('profileData keys:', Object.keys(profileData || {}))
-    console.log('profileData.business_name:', (profileData as any)?.business_name)
-
     const body = { model, max_tokens: baseMaxTokens, temperature: temperature ?? 0.3, system: sysPrompt, messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
