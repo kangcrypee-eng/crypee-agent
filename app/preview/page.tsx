@@ -136,8 +136,19 @@ function Pv() {
     return table+'</table>'
   }
 
-  const dl=()=>{
+  const dl=async()=>{
     const text=editing?editText:result;if(!text||!m)return
+
+    // HWPX 다운로드
+    if(fmt==='hwpx'){
+      try{
+        const res=await fetch('/api/download-hwp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({markdown:text,title:m.name})})
+        if(!res.ok){alert('HWPX 생성 실패');return}
+        const blob=await res.blob()
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=m.name+'.hwpx';a.click();URL.revokeObjectURL(a.href)
+      }catch(e){alert('HWPX 다운로드 실패')}
+      return
+    }
 
     if(fmt==='pdf'){
       const printWindow=window.open('','_blank')
@@ -216,7 +227,7 @@ p{margin:6px 0}
         <div><h2 className="text-[17px] font-bold">{m.icon} {m.name}</h2><p className="text-[12px]" style={{color:'var(--text-muted)'}}>{m.category}</p></div>
         <div className="flex gap-1.5 flex-wrap">
           {!isLocked&&<>
-            <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{(m.output_formats||['pdf']).map((f:string)=><option key={f}>{f.toUpperCase()}</option>)}</select>
+            <select value={fmt} onChange={e=>setFmt(e.target.value)} className="px-2.5 py-1.5 rounded-[5px] text-[12px] border" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text)'}}>{Array.from(new Set([...(m.output_formats||['pdf']),'hwpx'])).map((f:string)=><option key={f} value={f}>{f==='hwpx'?'HWPX (한글)':f.toUpperCase()}</option>)}</select>
             <button onClick={dl} className="px-3 py-1.5 font-semibold text-[12px] rounded-md" style={{background:'var(--accent)',color:'var(--bg)'}}>다운로드</button>
           </>}
           {!isLocked&&(editing

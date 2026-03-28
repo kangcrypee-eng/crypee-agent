@@ -35,6 +35,12 @@
   --mode-chat-bg: rgba(155,141,255,0.08);
   --mode-chat-text: #7B6FE6;
   --mode-chat-border: rgba(155,141,255,0.2);
+  --mode-alert-bg: rgba(255,165,0,0.08);
+  --mode-alert-text: #E08A00;
+  --mode-alert-border: rgba(255,165,0,0.2);
+  --mode-bizplan-bg: rgba(91,141,239,0.08);
+  --mode-bizplan-text: #4A7FD6;
+  --mode-bizplan-border: rgba(91,141,239,0.2);
 }
 
 [data-theme="dark"] {
@@ -68,6 +74,12 @@
   --mode-chat-bg: rgba(155,141,255,0.1);
   --mode-chat-text: #9B8DFF;
   --mode-chat-border: rgba(155,141,255,0.2);
+  --mode-alert-bg: rgba(255,179,0,0.1);
+  --mode-alert-text: #FFB300;
+  --mode-alert-border: rgba(255,179,0,0.2);
+  --mode-bizplan-bg: rgba(91,141,239,0.1);
+  --mode-bizplan-text: #5B8DEF;
+  --mode-bizplan-border: rgba(91,141,239,0.2);
 }
 
 body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif;transition:background .2s,color .2s}

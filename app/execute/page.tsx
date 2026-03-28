@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
-const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림',bizplan:'📋 사업계획서'}
+const ML:Record<string,string>={oneclick:'⚡ 원클릭',form:'📝 폼',chat:'💬 대화',alert:'🔔 알림',bizplan:'📝 폼'}
 
 const PROFILE_FIELDS = new Set(['business_name','representative','business_number','business_type','sector','item','service_desc','target_customer','track_record','address','phone','email'])
 
