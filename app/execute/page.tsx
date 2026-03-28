@@ -47,6 +47,8 @@ function Exec() {
   const id=params.get('id')||'';const[m,setM]=useState<any>(null);const[mode,setMode]=useState('oneclick')
   const[ld,setLd]=useState(true);const[gen,setGen]=useState(false);const[prog,setProg]=useState(0);const[paying,setPaying]=useState(false)
   const[msgs,setMsgs]=useState<{type:string;text:string}[]>([]);const[ci,setCi]=useState('')
+  // bizplan 파일 업로드
+  const[existingPlan,setExistingPlan]=useState<File|null>(null);const[images,setImages]=useState<File[]>([])
   const[cs,setCs]=useState(0);const[fd,setFd]=useState<Record<string,string>>({})
   const[autoFields,setAutoFields]=useState<Array<{key:string;label:string;type:string;placeholder:string;required:boolean}>>([])
   const[profileFields,setProfileFields]=useState<Array<{key:string;label:string;value:string}>>([])
@@ -95,13 +97,42 @@ function Exec() {
     }
   }
 
+  // 파일 텍스트 추출 (클라이언트에서)
+  const readFileAsText=async(file:File):Promise<string>=>{
+    return new Promise((resolve)=>{
+      const reader=new FileReader()
+      reader.onload=()=>resolve(reader.result as string||'')
+      reader.onerror=()=>resolve('')
+      reader.readAsText(file)
+    })
+  }
+
   // 무료 모듈: 직접 AI 생성
   const generateDirect=async()=>{
     if(!m||!user)return
     setGen(true);for(let i=0;i<4;i++){setProg((i+1)*25);await new Promise(r=>setTimeout(r,700))}
     const inputData=collectInputData()
+
+    // bizplan: 기존 사업계획서 텍스트를 추가 데이터에 포함
+    const extraData={...fd}
+    if(existingPlan){
+      try{const text=await readFileAsText(existingPlan);if(text.trim())extraData._existing_plan=text.substring(0,8000)}catch{}
+    }
+    if(images.length>0){
+      extraData._uploaded_images=images.map(img=>img.name).join(', ')
+    }
+
     try{
-      const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:m.user_prompt_template,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:fd})})
+      // user_prompt_template에 기존 계획서 내용 추가
+      let enhancedPrompt=m.user_prompt_template
+      if(extraData._existing_plan){
+        enhancedPrompt+=`\n\n[기존 사업계획서 참고 내용]\n${extraData._existing_plan}\n\n※ 위 기존 계획서의 핵심 내용, 수치, 표현을 참고하여 새 양식에 맞게 재구성해주세요.`
+      }
+      if(extraData._uploaded_images){
+        enhancedPrompt+=`\n\n[업로드된 이미지]\n${extraData._uploaded_images}\n\n※ 위 이미지를 적절한 위치에 [이미지 삽입: 파일명] 마커로 포함해주세요.`
+      }
+
+      const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m.id,systemPrompt:m.system_prompt,userPrompt:enhancedPrompt,aiModel:m.ai_model,maxTokens:m.max_tokens,temperature:m.temperature,profileData:inputData,additionalData:extraData})})
       const result=await res.json()
       if(!result.success){alert('생성 실패: '+(result.error||'알 수 없는 오류'));setGen(false);return}
       await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:result.result,output_format:m.default_format||'pdf',credits_used:0,input_tokens:result.usage?.input_tokens,output_tokens:result.usage?.output_tokens,ai_model:m.ai_model,generation_time_ms:result.usage?.generation_time_ms})
@@ -173,6 +204,47 @@ function Exec() {
           <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>아래 정보를 입력해주세요. 비워두면 AI가 [빈칸] 처리합니다.</p>
           {renderFormFields(autoFields)}
         </div>
+        {/* bizplan 파일 업로드 */}
+        {m?.mode==='bizplan'&&<div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+          <p className="text-[13px] font-semibold mb-1" style={{color:'var(--text)'}}>참고 자료 업로드 (선택)</p>
+          <p className="text-[11px] mb-4" style={{color:'var(--text-muted)'}}>기존 사업계획서나 이미지를 업로드하면 AI가 참고하여 더 정확한 결과물을 생성합니다.</p>
+
+          <div className="mb-4">
+            <label className="block text-[12px] font-medium mb-1.5" style={{color:'var(--text-secondary)'}}>기존 사업계획서 (선택)</label>
+            {existingPlan?(
+              <div className="flex items-center gap-2 p-2.5 rounded-lg border" style={{background:'var(--surface-input)',borderColor:'var(--border)'}}>
+                <span>📄</span><span className="flex-1 text-[12px]">{existingPlan.name} <span style={{color:'var(--text-muted)'}}>({(existingPlan.size/1024).toFixed(0)}KB)</span></span>
+                <button onClick={()=>setExistingPlan(null)} className="text-[11px]" style={{color:'var(--error-text)'}}>삭제</button>
+              </div>
+            ):(
+              <label className="block p-4 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--border-strong)'}}>
+                <span className="text-lg opacity-40">📎</span>
+                <p className="text-[10px]" style={{color:'var(--text-muted)'}}>이전에 작성한 사업계획서 (PDF, DOCX, TXT)</p>
+                <input type="file" accept=".pdf,.docx,.txt,.hwp" className="hidden" onChange={e=>{if(e.target.files?.[0])setExistingPlan(e.target.files[0])}}/>
+              </label>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-[12px] font-medium mb-1.5" style={{color:'var(--text-secondary)'}}>이미지/도표 (선택, 최대 5개)</label>
+            <div className="space-y-1.5 mb-2">
+              {images.map((img,i)=>(
+                <div key={i} className="flex items-center gap-2 p-2 rounded-lg border" style={{background:'var(--surface-input)',borderColor:'var(--border)'}}>
+                  <span>🖼️</span><span className="flex-1 text-[11px]">{img.name}</span>
+                  <button onClick={()=>setImages(images.filter((_,j)=>j!==i))} className="text-[11px]" style={{color:'var(--error-text)'}}>삭제</button>
+                </div>
+              ))}
+            </div>
+            {images.length<5&&(
+              <label className="block p-3 rounded-lg border-2 border-dashed text-center cursor-pointer hover:opacity-80" style={{borderColor:'var(--border-strong)'}}>
+                <span className="text-sm opacity-40">🖼️</span>
+                <span className="text-[10px] ml-1" style={{color:'var(--text-muted)'}}>서비스 스크린샷, 조직도, 도표 등</span>
+                <input type="file" accept="image/*" multiple className="hidden" onChange={e=>{if(e.target.files)setImages([...images,...Array.from(e.target.files)].slice(0,5))}}/>
+              </label>
+            )}
+          </div>
+        </div>}
+
         {profileFields.length>0&&<div className="rounded-[10px] p-5 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <div className="flex items-center justify-between mb-3">
             <div><p className="text-[13px] font-semibold" style={{color:'var(--text)'}}>내 사업자 정보</p><p className="text-[11px]" style={{color:'var(--text-muted)'}}>프로필에서 자동으로 채워졌습니다</p></div>
