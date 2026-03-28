@@ -26,32 +26,48 @@ async function extractPdfText(data: Uint8Array): Promise<{ text: string; pages: 
 // HWP 텍스트 추출 (hwp.js)
 function extractHwpText(buffer: Buffer): string {
   const { parse } = require('hwp.js')
-  const parsed = parse(buffer)
+  const parsed = parse(buffer, { type: 'buffer' })
   const texts: string[] = []
 
-  function walk(obj: any) {
-    if (!obj) return
-    if (typeof obj === 'string') { texts.push(obj); return }
-    if (typeof obj.content === 'string') { texts.push(obj.content); return }
-    if (Array.isArray(obj.content)) { obj.content.forEach(walk); return }
-    if (Array.isArray(obj)) { obj.forEach(walk); return }
-    // sections, paragraphs 등 순회
-    if (obj.sections) obj.sections.forEach(walk)
-    if (obj.content) walk(obj.content)
+  // content items에서 type:0 텍스트 추출
+  function extractFromItems(items: any[]) {
+    if (!items || !Array.isArray(items)) return
+    let line = ''
+    for (const item of items) {
+      if (item.type === 0) {
+        if (typeof item.value === 'string') line += item.value
+        else if (typeof item.value === 'number') line += String.fromCharCode(item.value)
+      }
+    }
+    if (line.trim()) texts.push(line.trim())
   }
 
-  if (parsed.sections) {
-    for (const section of parsed.sections) {
-      if (section.content) {
-        for (const paragraph of section.content) {
-          walk(paragraph)
-          texts.push('\n')
+  // 문단 순회 (테이블 셀 내부 포함)
+  function walkParagraph(para: any) {
+    if (!para) return
+    if (Array.isArray(para.content)) extractFromItems(para.content)
+    if (para.controls) {
+      for (const ctrl of para.controls) {
+        if (ctrl.content && Array.isArray(ctrl.content)) {
+          for (const row of ctrl.content) {
+            if (Array.isArray(row)) {
+              for (const cell of row) {
+                if (cell.items) cell.items.forEach(walkParagraph)
+              }
+            }
+          }
         }
       }
     }
   }
 
-  return texts.join('').replace(/\n{3,}/g, '\n\n').trim()
+  if (parsed.sections) {
+    for (const section of parsed.sections) {
+      if (section.content) section.content.forEach(walkParagraph)
+    }
+  }
+
+  return texts.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 export async function POST(request: NextRequest) {
