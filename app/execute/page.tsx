@@ -168,63 +168,39 @@ function Exec() {
     }
 
     try{
-      if(m.mode==='bizplan'){
-        // === 사업계획서: 6파트 분할 생성 (Vercel 60초 제한 우회) ===
-        // 각 파트 2500토큰 × 6 = 최대 15000토큰, 각 ~37초 (여유 23초)
-        const TK=2500
-        const existingRef=extraData._existing_plan
-        const refBlock=existingRef
-          ?(useExistingMode
-            ?`\n\n[기존 사업계획서 — 핵심 내용을 최대한 활용하여 재작성]\n${existingRef.substring(0,6000)}`
-            :`\n\n[기존 사업계획서 참고]\n${existingRef.substring(0,6000)}`)
-          :''
-        const bizInfo=`\n[사업자 정보] 상호: {{business_name}} / 대표자: {{representative}} / 업종: {{sector}},{{item}} / 서비스: {{service_desc}} / 타겟: {{target_customer}}`
+      // 프롬프트 구성
+      let enhancedPrompt=m.user_prompt_template||''
 
-        const parts:{label:string;prompt:string}[]=[
-          {label:'[1/6] 창업 아이템 개요',prompt:`"1. 창업 아이템 개요" 섹션만 작성하세요. 아이템 소개, 핵심 가치, 제품/서비스 설명, 차별성을 포함하세요. 표 포함. 이 섹션만 쓰고 중단.${refBlock}${bizInfo}`},
-          {label:'[2/6] 시장 분석',prompt:`"2. 시장 분석" 섹션만 작성하세요. 시장 규모, 성장률, 경쟁사 분석, 타겟 고객 세분화를 포함하세요. 표 포함. 이 섹션만 쓰고 중단.${refBlock}${bizInfo}`},
-          {label:'[3/6] 실현 가능성 (기술)',prompt:`"3. 실현 가능성" 중 기술적 실현 가능성, 핵심 기술, 지식재산권을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
-          {label:'[4/6] 실현 가능성 (인력·자금)',prompt:`"3. 실현 가능성" 중 팀 구성/인력 계획, 자금 운영 계획을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
-          {label:'[5/6] 사업화 전략 (수익·마케팅)',prompt:`"4. 사업화 전략" 중 수익 모델, 마케팅/고객 확보 전략, 판매 채널을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
-          {label:'[6/6] 사업화 전략 (매출·로드맵)',prompt:`"4. 사업화 전략" 중 매출 계획(3년), 성장 로드맵, 기대 효과, 사회적 가치를 작성하세요. 표 포함. 반드시 끝까지 완성.${refBlock}${bizInfo}`},
-        ]
+      if(m.mode==='bizplan'&&extraData._existing_plan){
+        // 기존 사업계획서가 있으면 프롬프트에 명시적으로 포함
+        if(useExistingMode){
+          enhancedPrompt=`[작성 모드: 기존 사업계획서 기반 재작성]
 
-        const results:string[]=[]
-        for(let i=0;i<parts.length;i++){
-          const p=parts[i]
-          setGenStep(`✍️ ${p.label} 작성 중...`);setProg(5+i*15)
-          const prevSummary=results.length>0?`\n\n[이전 내용 요약 — 일관성 유지]\n${results.map(r=>r.substring(0,800)).join('\n...\n')}`:'';
-          const fullP=`${p.prompt}${prevSummary}\n\n${m.user_prompt_template}`
-          const text=await callGenerate(fullP,m.system_prompt,inputData,extraData,TK)
-          if(text.trim())results.push(text)
+아래 "기존 사업계획서"의 내용을 분석하고, 시스템 프롬프트에 정의된 양식 구조와 심사기준에 맞춰 전면 재작성해주세요.
+- 기존 계획서의 핵심 아이디어, 수치, 실적, 팀 정보를 최대한 활용하세요
+- 양식의 모든 섹션(일반현황, 개요, 문제인식, 실현가능성, 성장전략, 팀구성)을 빠짐없이 작성하세요
+- 부족한 정보는 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시
+
+━━━ 기존 사업계획서 전문 ━━━
+${extraData._existing_plan}
+━━━ 기존 사업계획서 끝 ━━━
+
+${m.user_prompt_template||''}`
+        }else{
+          enhancedPrompt+=`\n\n━━━ 참고: 기존 사업계획서 ━━━\n${extraData._existing_plan}\n━━━ 참고 끝 ━━━\n\n위 기존 계획서의 핵심 내용, 수치, 표현을 참고하여 양식에 맞게 작성해주세요.`
         }
-
-        const fullText=results.join('\n\n')
-        if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
-
-        setGenStep('💾 저장 중...');setProg(95)
-        await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:'claude-sonnet-4-6'})
-        await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
-        sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
-        setProg(100);setGenStep('✅ 완료!')
-        router.push('/preview?id='+m.id)
-      } else {
-        // === 일반 모듈: 단일 호출 ===
-        setGenStep('✍️ AI가 작성 중...');setProg(20)
-        let enhancedPrompt=m.user_prompt_template
-        if(extraData._existing_plan){
-          enhancedPrompt+=`\n\n[참고 자료]\n${extraData._existing_plan}`
-        }
-        const fullText=await callGenerate(enhancedPrompt,m.system_prompt,inputData,extraData)
-        if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
-
-        setGenStep('💾 저장 중...');setProg(95)
-        await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:m.ai_model})
-        await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
-        sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
-        setProg(100);setGenStep('✅ 완료!')
-        router.push('/preview?id='+m.id)
       }
+
+      setGenStep(m.mode==='bizplan'?'✍️ 사업계획서 작성 중... (약 1~2분)':'✍️ AI가 작성 중...');setProg(20)
+      const fullText=await callGenerate(enhancedPrompt,m.system_prompt,inputData,extraData)
+      if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
+
+      setGenStep('💾 저장 중...');setProg(95)
+      await supabase.from('generations').insert({user_id:user.id,module_id:m.id,input_data:inputData,output_text:fullText,output_format:m.default_format||'pdf',credits_used:0,ai_model:m.ai_model})
+      await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
+      sessionStorage.setItem('lastResult',fullText);sessionStorage.setItem('lastModule',JSON.stringify(m))
+      setProg(100);setGenStep('✅ 완료!')
+      router.push('/preview?id='+m.id)
     }catch(e:any){alert('생성 실패: '+(e.message||''));setGen(false);setGenStep('')}
   }
 

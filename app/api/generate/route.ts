@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
   const start = Date.now()
@@ -20,9 +20,8 @@ export async function POST(request: NextRequest) {
 
     const isBP = moduleId?.startsWith('BP')
     const model = isBP ? 'claude-sonnet-4-6' : (aiModel || 'claude-sonnet-4-6')
-    // 클라이언트가 보낸 maxTokens 존중 (파트 분할 시 각 파트별 토큰)
-    const baseMaxTokens = maxTokens || (isBP ? 4000 : 4096)
-    const sysPrompt = (systemPrompt || '') + (isBP ? '\n\n[중요 지시사항]\n- 지정된 섹션을 빠짐없이 끝까지 완성하세요\n- 절대 중간에 생략하거나 요약하지 마세요\n- 각 항목을 구체적이고 상세하게 작성하세요\n- 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요' : '')
+    const baseMaxTokens = isBP ? 16384 : (maxTokens || 4096)
+    const sysPrompt = systemPrompt || ''
     const body = { model, max_tokens: baseMaxTokens, temperature: temperature ?? 0.3, system: sysPrompt, messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
