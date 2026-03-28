@@ -99,18 +99,43 @@ function Exec() {
     }
   }
 
-  // 파일 텍스트 추출 (PDF는 서버, 나머지는 클라이언트)
+  // 파일 텍스트 추출 — 브라우저에서 직접 pdf.js로 추출 (한글 CIDFont 완벽 지원)
   const extractText=async(file:File):Promise<string>=>{
     if(file.name.toLowerCase().endsWith('.pdf')){
-      const formBody=new FormData();formBody.append('file',file)
       try{
-        const res=await fetch('/api/extract-text',{method:'POST',body:formBody})
-        if(!res.ok){console.error('PDF extract failed:',res.status);return ''}
-        const data=await res.json()
-        if(!data.text){console.error('PDF extract empty:',data);return ''}
-        console.log('PDF extracted:',data.text.length,'chars,',data.pages,'pages')
-        return data.text||''
-      }catch(e){console.error('PDF extract error:',e);return ''}
+        // pdf.js CDN 로드 (CMap 포함)
+        const pdfjsSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.min.mjs'
+        const pdfjsWorker='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs'
+        const pdfjsLib=await import(/* webpackIgnore: true */ pdfjsSrc)
+        pdfjsLib.GlobalWorkerOptions.workerSrc=pdfjsWorker
+
+        const arrayBuffer=await file.arrayBuffer()
+        const doc=await pdfjsLib.getDocument({
+          data:new Uint8Array(arrayBuffer),
+          cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/cmaps/',
+          cMapPacked:true,
+        }).promise
+
+        const pages:string[]=[]
+        for(let i=1;i<=doc.numPages;i++){
+          const page=await doc.getPage(i)
+          const content=await page.getTextContent()
+          const text=content.items.filter((it:any)=>it.str!==undefined).map((it:any)=>it.str).join(' ')
+          if(text.trim())pages.push(text.trim())
+        }
+        const fullText=pages.join('\n\n')
+        console.log('PDF extracted (client):',fullText.length,'chars,',doc.numPages,'pages')
+        return fullText
+      }catch(e){
+        console.error('Client PDF extract failed:',e)
+        // 서버 폴백
+        try{
+          const formBody=new FormData();formBody.append('file',file)
+          const res=await fetch('/api/extract-text',{method:'POST',body:formBody})
+          if(res.ok){const data=await res.json();if(data.text)return data.text}
+        }catch{}
+        return ''
+      }
     }
     return new Promise((resolve)=>{
       const reader=new FileReader()
