@@ -3,14 +3,13 @@ import { getDocumentProxy } from 'unpdf'
 
 export const maxDuration = 30
 
+// PDF 텍스트 추출
 async function extractPdfText(data: Uint8Array): Promise<{ text: string; pages: number }> {
-  // unpdf의 getDocumentProxy로 직접 접근 — CMap 옵션 포함
   const doc = await getDocumentProxy(data, {
     cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/cmaps/',
     cMapPacked: true,
     useSystemFonts: true,
   })
-
   const pages: string[] = []
   for (let i = 1; i <= doc.numPages; i++) {
     const page = await doc.getPage(i)
@@ -21,8 +20,38 @@ async function extractPdfText(data: Uint8Array): Promise<{ text: string; pages: 
       .join(' ')
     if (pageText.trim()) pages.push(pageText.trim())
   }
-
   return { text: pages.join('\n\n'), pages: doc.numPages }
+}
+
+// HWP 텍스트 추출 (hwp.js)
+function extractHwpText(buffer: Buffer): string {
+  const { parse } = require('hwp.js')
+  const parsed = parse(buffer)
+  const texts: string[] = []
+
+  function walk(obj: any) {
+    if (!obj) return
+    if (typeof obj === 'string') { texts.push(obj); return }
+    if (typeof obj.content === 'string') { texts.push(obj.content); return }
+    if (Array.isArray(obj.content)) { obj.content.forEach(walk); return }
+    if (Array.isArray(obj)) { obj.forEach(walk); return }
+    // sections, paragraphs 등 순회
+    if (obj.sections) obj.sections.forEach(walk)
+    if (obj.content) walk(obj.content)
+  }
+
+  if (parsed.sections) {
+    for (const section of parsed.sections) {
+      if (section.content) {
+        for (const paragraph of section.content) {
+          walk(paragraph)
+          texts.push('\n')
+        }
+      }
+    }
+  }
+
+  return texts.join('').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 export async function POST(request: NextRequest) {
@@ -32,9 +61,27 @@ export async function POST(request: NextRequest) {
     if (!file) return NextResponse.json({ error: '파일이 없습니다' }, { status: 400 })
 
     const arrayBuffer = await file.arrayBuffer()
-    console.log('Extract text:', file.name, Buffer.from(arrayBuffer).length, 'bytes')
+    const buffer = Buffer.from(arrayBuffer)
+    const fileName = file.name.toLowerCase()
+    console.log('Extract text:', file.name, buffer.length, 'bytes')
 
-    if (file.name.toLowerCase().endsWith('.pdf')) {
+    // HWP 파일
+    if (fileName.endsWith('.hwp')) {
+      try {
+        const text = extractHwpText(buffer)
+        console.log('HWP parsed:', text.length, 'chars')
+        if (!text) {
+          return NextResponse.json({ success: true, text: '', warning: 'HWP에서 텍스트를 추출할 수 없습니다.' })
+        }
+        return NextResponse.json({ success: true, text })
+      } catch (hwpErr: any) {
+        console.error('HWP parse error:', hwpErr)
+        return NextResponse.json({ error: 'HWP 파싱 실패: ' + (hwpErr.message || '알 수 없는 오류') }, { status: 400 })
+      }
+    }
+
+    // PDF 파일
+    if (fileName.endsWith('.pdf')) {
       try {
         const { text, pages } = await extractPdfText(new Uint8Array(arrayBuffer))
         console.log('PDF parsed:', pages, 'pages,', text.length, 'chars')
@@ -48,7 +95,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const text = Buffer.from(arrayBuffer).toString('utf-8')
+    // TXT 등
+    const text = buffer.toString('utf-8')
     return NextResponse.json({ success: true, text })
   } catch (e: any) {
     console.error('Extract text error:', e)

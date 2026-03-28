@@ -99,40 +99,18 @@ function Exec() {
     }
   }
 
-  // 파일 텍스트 추출 — 브라우저에서 pdfjs-dist로 추출 (한글 CIDFont 지원)
+  // 파일 텍스트 추출 — HWP/PDF/TXT 모두 서버 API로 처리
   const extractText=async(file:File):Promise<string>=>{
-    if(file.name.toLowerCase().endsWith('.pdf')){
+    const name=file.name.toLowerCase()
+    if(name.endsWith('.pdf')||name.endsWith('.hwp')||name.endsWith('.hwpx')){
+      const formBody=new FormData();formBody.append('file',file)
       try{
-        const pdfjsLib=await import('pdfjs-dist')
-        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/build/pdf.worker.min.mjs'
-
-        const arrayBuffer=await file.arrayBuffer()
-        const doc=await pdfjsLib.getDocument({
-          data:new Uint8Array(arrayBuffer),
-          cMapUrl:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.9.155/cmaps/',
-          cMapPacked:true,
-        }).promise
-
-        const pages:string[]=[]
-        for(let i=1;i<=doc.numPages;i++){
-          const page=await doc.getPage(i)
-          const content=await page.getTextContent()
-          const text=content.items.filter((it:any)=>it.str!==undefined).map((it:any)=>it.str).join(' ')
-          if(text.trim())pages.push(text.trim())
-        }
-        const fullText=pages.join('\n\n')
-        console.log('PDF extracted (pdfjs-dist):',fullText.length,'chars,',doc.numPages,'pages')
-        return fullText
-      }catch(e){
-        console.error('pdfjs-dist extract failed:',e)
-        // 서버 폴백
-        try{
-          const formBody=new FormData();formBody.append('file',file)
-          const res=await fetch('/api/extract-text',{method:'POST',body:formBody})
-          if(res.ok){const data=await res.json();if(data.text)return data.text}
-        }catch{}
-        return ''
-      }
+        const res=await fetch('/api/extract-text',{method:'POST',body:formBody})
+        const data=await res.json()
+        if(!res.ok){console.error('Extract failed:',data.error);return ''}
+        console.log('Extracted:',data.text?.length||0,'chars')
+        return data.text||''
+      }catch(e){console.error('Extract error:',e);return ''}
     }
     return new Promise((resolve)=>{
       const reader=new FileReader()
