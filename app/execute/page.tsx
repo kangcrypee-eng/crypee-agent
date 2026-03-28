@@ -139,8 +139,8 @@ function Exec() {
   }
 
   // 단일 파트 생성 호출
-  const callGenerate=async(prompt:string,sysPrompt:string,inputData:Record<string,string>,extra:Record<string,string>):Promise<string>=>{
-    const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m!.id,systemPrompt:sysPrompt,userPrompt:prompt,aiModel:m!.ai_model,maxTokens:m!.max_tokens,temperature:m!.temperature,profileData:inputData,additionalData:extra,stream:true})})
+  const callGenerate=async(prompt:string,sysPrompt:string,inputData:Record<string,string>,extra:Record<string,string>,tokens?:number):Promise<string>=>{
+    const res=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({moduleId:m!.id,systemPrompt:sysPrompt,userPrompt:prompt,aiModel:m!.ai_model,maxTokens:tokens||m!.max_tokens,temperature:m!.temperature,profileData:inputData,additionalData:extra,stream:true})})
     if(!res.ok){const err=await res.json().catch(()=>({error:'생성 실패'}));throw new Error(err.error||'알 수 없는 오류')}
     return readStream(res)
   }
@@ -169,51 +169,37 @@ function Exec() {
 
     try{
       if(m.mode==='bizplan'){
-        // === 사업계획서: 파트별 분할 생성 (60초 제한 우회) ===
+        // === 사업계획서: 6파트 분할 생성 (Vercel 60초 제한 우회) ===
+        // 각 파트 2500토큰 × 6 = 최대 15000토큰, 각 ~37초 (여유 23초)
+        const TK=2500
         const existingRef=extraData._existing_plan
         const refBlock=existingRef
           ?(useExistingMode
-            ?`\n\n[기존 사업계획서 — 핵심 내용을 최대한 활용하여 재작성]\n${existingRef}`
-            :`\n\n[기존 사업계획서 참고]\n${existingRef}`)
+            ?`\n\n[기존 사업계획서 — 핵심 내용을 최대한 활용하여 재작성]\n${existingRef.substring(0,6000)}`
+            :`\n\n[기존 사업계획서 참고]\n${existingRef.substring(0,6000)}`)
           :''
-        const bizInfo=`\n\n[사업자 정보]\n상호: {{business_name}}\n대표자: {{representative}}\n업종: {{sector}} / {{item}}\n서비스: {{service_desc}}\n타겟 고객: {{target_customer}}\n주요 실적: {{track_record}}`
+        const bizInfo=`\n[사업자 정보] 상호: {{business_name}} / 대표자: {{representative}} / 업종: {{sector}},{{item}} / 서비스: {{service_desc}} / 타겟: {{target_customer}}`
 
-        // 파트 1: 창업 아이템 개요 + 시장 분석
-        setGenStep('✍️ [1/3] 창업 아이템·시장 분석 작성 중...');setProg(15)
-        const prompt1=`아래 양식의 "1. 창업 아이템 개요"와 "2. 시장 분석" 섹션만 작성하세요.
-각 항목을 상세하고 구체적으로 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
-이 두 섹션이 끝나면 중단하세요. 다른 섹션은 작성하지 마세요.${refBlock}${bizInfo}
+        const parts:{label:string;prompt:string}[]=[
+          {label:'[1/6] 창업 아이템 개요',prompt:`"1. 창업 아이템 개요" 섹션만 작성하세요. 아이템 소개, 핵심 가치, 제품/서비스 설명, 차별성을 포함하세요. 표 포함. 이 섹션만 쓰고 중단.${refBlock}${bizInfo}`},
+          {label:'[2/6] 시장 분석',prompt:`"2. 시장 분석" 섹션만 작성하세요. 시장 규모, 성장률, 경쟁사 분석, 타겟 고객 세분화를 포함하세요. 표 포함. 이 섹션만 쓰고 중단.${refBlock}${bizInfo}`},
+          {label:'[3/6] 실현 가능성 (기술)',prompt:`"3. 실현 가능성" 중 기술적 실현 가능성, 핵심 기술, 지식재산권을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
+          {label:'[4/6] 실현 가능성 (인력·자금)',prompt:`"3. 실현 가능성" 중 팀 구성/인력 계획, 자금 운영 계획을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
+          {label:'[5/6] 사업화 전략 (수익·마케팅)',prompt:`"4. 사업화 전략" 중 수익 모델, 마케팅/고객 확보 전략, 판매 채널을 작성하세요. 표 포함. 이 부분만 쓰고 중단.${refBlock}${bizInfo}`},
+          {label:'[6/6] 사업화 전략 (매출·로드맵)',prompt:`"4. 사업화 전략" 중 매출 계획(3년), 성장 로드맵, 기대 효과, 사회적 가치를 작성하세요. 표 포함. 반드시 끝까지 완성.${refBlock}${bizInfo}`},
+        ]
 
-${m.user_prompt_template}`
-        const part1=await callGenerate(prompt1,m.system_prompt,inputData,extraData)
-        if(!part1.trim())throw new Error('파트1 생성 실패')
+        const results:string[]=[]
+        for(let i=0;i<parts.length;i++){
+          const p=parts[i]
+          setGenStep(`✍️ ${p.label} 작성 중...`);setProg(5+i*15)
+          const prevSummary=results.length>0?`\n\n[이전 내용 요약 — 일관성 유지]\n${results.map(r=>r.substring(0,800)).join('\n...\n')}`:'';
+          const fullP=`${p.prompt}${prevSummary}\n\n${m.user_prompt_template}`
+          const text=await callGenerate(fullP,m.system_prompt,inputData,extraData,TK)
+          if(text.trim())results.push(text)
+        }
 
-        // 파트 2: 실현 가능성
-        setGenStep('✍️ [2/3] 실현 가능성 작성 중...');setProg(45)
-        const prompt2=`아래 양식의 "3. 실현 가능성" 섹션만 작성하세요.
-기술적 실현 가능성, 인력 구성, 자금 운영 계획 등을 상세하게 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
-이 섹션이 끝나면 중단하세요. 다른 섹션은 작성하지 마세요.
-
-[이전에 작성된 내용 요약 — 일관성 유지]
-${part1.substring(0,3000)}${refBlock}${bizInfo}
-
-${m.user_prompt_template}`
-        const part2=await callGenerate(prompt2,m.system_prompt,inputData,extraData)
-
-        // 파트 3: 사업화 전략 + 나머지
-        setGenStep('✍️ [3/3] 사업화 전략 작성 중...');setProg(70)
-        const prompt3=`아래 양식의 "4. 사업화 전략" 및 나머지 모든 섹션을 작성하세요.
-사업화 전략, 매출 계획, 마케팅 전략, 성장 로드맵 등을 상세하게 작성하세요. 표가 필요한 곳에는 반드시 마크다운 표를 포함하세요.
-반드시 끝까지 완성하세요.
-
-[이전에 작성된 내용 요약 — 일관성 유지]
-${part1.substring(0,2000)}
-${part2.substring(0,2000)}${refBlock}${bizInfo}
-
-${m.user_prompt_template}`
-        const part3=await callGenerate(prompt3,m.system_prompt,inputData,extraData)
-
-        const fullText=[part1,part2,part3].filter(Boolean).join('\n\n')
+        const fullText=results.join('\n\n')
         if(!fullText.trim()){alert('생성 실패: 결과물이 비어있습니다');setGen(false);setGenStep('');return}
 
         setGenStep('💾 저장 중...');setProg(95)
