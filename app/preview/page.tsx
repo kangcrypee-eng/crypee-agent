@@ -60,7 +60,7 @@ function Pv() {
         amount:{currency:'KRW',value:m.price_krw},
         orderId,
         orderName:m.name,
-        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&returnTo=/preview?id=${m.id}%26purchased=true`,
+        successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&returnTo=${encodeURIComponent('/preview?id='+m.id+'&purchased=true')}`,
         failUrl:`${appUrl}/api/payment/fail`,
       })
     }catch(e:any){
@@ -115,53 +115,54 @@ function Pv() {
     setRegenerating(false);setRegenProg(0)
   }
 
-  const dl=async()=>{
+  const dl=()=>{
     const text=editing?editText:result;if(!text||!m)return
 
     if(fmt==='pdf'){
-      // PDF 다운로드
-      const{jsPDF}=await import('jspdf')
-      const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'})
-
-      // 한글 폰트 지원을 위해 기본 폰트 사용 + 유니코드
-      const pageWidth=170;const marginLeft=20;const marginTop=20
-      let y=marginTop
-
-      // 텍스트를 줄 단위로 처리
-      const lines=text.split('\n')
-      for(const line of lines){
-        const cleaned=line.replace(/\*\*/g,'').replace(/^#+\s*/,'').replace(/━+/g,'─────────────────────────────')
-
-        if(y>275){doc.addPage();y=marginTop}
-
-        if(line.startsWith('# ')||line.startsWith('## ')||line.startsWith('### ')){
-          const level=line.startsWith('### ')?12:line.startsWith('## ')?14:16
-          doc.setFontSize(level)
-          doc.setFont('helvetica','bold')
-          const title=line.replace(/^#+\s*/,'')
-          doc.text(title,marginLeft,y)
-          y+=level*0.5+2
-        } else if(line.startsWith('|')){
-          // 표 행
-          doc.setFontSize(9)
-          doc.setFont('helvetica','normal')
-          const wrapped=doc.splitTextToSize(cleaned,pageWidth)
-          doc.text(wrapped,marginLeft,y)
-          y+=wrapped.length*4+1
-        } else if(line.trim()===''){
-          y+=3
-        } else {
-          doc.setFontSize(10)
-          doc.setFont('helvetica',line.includes('**')?'bold':'normal')
-          const wrapped=doc.splitTextToSize(cleaned,pageWidth)
-          doc.text(wrapped,marginLeft,y)
-          y+=wrapped.length*4.5+1
-        }
-      }
-
-      doc.save(m.name+'.pdf')
+      // PDF: 새 창에서 인쇄 (한글 + 표 + 양식 완벽 지원)
+      const printWindow=window.open('','_blank')
+      if(!printWindow)return
+      printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${m.name}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+body{font-family:'Noto Sans KR',sans-serif;font-size:11pt;line-height:1.8;color:#111;margin:0;padding:20mm 18mm;max-width:210mm;box-sizing:border-box}
+h1{font-size:16pt;font-weight:700;margin:20px 0 10px;border-bottom:2px solid #111;padding-bottom:5px}
+h2{font-size:14pt;font-weight:600;margin:18px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}
+h3{font-size:12pt;font-weight:600;margin:14px 0 6px}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:10pt}
+th,td{border:1px solid #333;padding:6px 8px;text-align:left;vertical-align:top}
+th{background:#f0f0f0;font-weight:600}
+strong{font-weight:700}
+p{margin:6px 0}
+.section-divider{border-top:2px solid #111;margin:15px 0}
+@media print{body{margin:0;padding:15mm}}
+@page{size:A4;margin:15mm}
+</style></head><body>`)
+      // 마크다운 → HTML 변환
+      let html=text
+        .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+        .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+        .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+        .replace(/━+/g,'<div class="section-divider"></div>')
+      // 마크다운 테이블 → HTML 테이블
+      html=html.replace(/(\|.+\|\n)+/g,(tableBlock)=>{
+        const rows=tableBlock.trim().split('\n').filter(r=>!r.match(/^\|[\s-|]+\|$/))
+        if(rows.length===0)return tableBlock
+        let t='<table>'
+        rows.forEach((row,i)=>{
+          const cells=row.split('|').filter(c=>c.trim())
+          const tag=i===0?'th':'td'
+          t+='<tr>'+cells.map(c=>`<${tag}>${c.trim()}</${tag}>`).join('')+'</tr>'
+        })
+        return t+'</table>'
+      })
+      html=html.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')
+      printWindow.document.write('<p>'+html+'</p>')
+      printWindow.document.write('</body></html>')
+      printWindow.document.close()
+      setTimeout(()=>{printWindow.print()},500)
     } else {
-      // 텍스트/기타 포맷
       const b=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=m.name+'.'+fmt;a.click()
     }
   }
