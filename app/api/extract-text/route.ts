@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-// pdf-parse v1 — require 방식이 Vercel serverless에서 안정적
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require('pdf-parse')
+import { extractText as extractPdfText } from 'unpdf'
 
 export const maxDuration = 30
 
@@ -11,18 +9,21 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: '파일이 없습니다' }, { status: 400 })
 
-    const buffer = Buffer.from(await file.arrayBuffer())
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
     console.log('Extract text:', file.name, buffer.length, 'bytes')
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        const data = await pdfParse(buffer)
-        const text = (data.text || '').trim()
-        console.log('PDF parsed:', data.numpages, 'pages,', text.length, 'chars')
-        if (!text) {
-          return NextResponse.json({ success: true, text: '', pages: data.numpages, warning: '텍스트를 추출할 수 없습니다. 스캔 이미지 PDF일 수 있습니다.' })
+        const result = await extractPdfText(new Uint8Array(arrayBuffer))
+        const totalPages = result.totalPages || 0
+        const rawText = Array.isArray(result.text) ? result.text.join('\n') : (result.text || '')
+        const cleaned = rawText.trim()
+        console.log('PDF parsed:', totalPages, 'pages,', cleaned.length, 'chars')
+        if (!cleaned) {
+          return NextResponse.json({ success: true, text: '', pages: totalPages, warning: '텍스트를 추출할 수 없습니다. 스캔 이미지 PDF일 수 있습니다.' })
         }
-        return NextResponse.json({ success: true, text, pages: data.numpages })
+        return NextResponse.json({ success: true, text: cleaned, pages: totalPages })
       } catch (pdfErr: any) {
         console.error('PDF parse error:', pdfErr)
         return NextResponse.json({ error: 'PDF 파싱 실패: ' + (pdfErr.message || '알 수 없는 오류') }, { status: 400 })

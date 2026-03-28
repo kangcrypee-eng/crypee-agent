@@ -75,21 +75,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '공고문과 양식 파일을 모두 업로드해주세요' }, { status: 400 })
     }
 
-    // PDF 텍스트 추출
+    // PDF 텍스트 추출 (unpdf 사용)
+    const { extractText: extractPdfText } = await import('unpdf')
     const extractText = async (file: File): Promise<string> => {
-      const buffer = Buffer.from(await file.arrayBuffer())
+      const arrayBuffer = await file.arrayBuffer()
 
-      if (file.name.endsWith('.pdf')) {
+      if (file.name.toLowerCase().endsWith('.pdf')) {
         try {
-          const pdfParse = require('pdf-parse')
-          const data = await pdfParse(buffer)
-          return data.text
+          const result = await extractPdfText(new Uint8Array(arrayBuffer))
+          const text = Array.isArray(result.text) ? result.text.join('\n') : (result.text || '')
+          return text
         } catch {
-          return buffer.toString('utf-8')
+          return Buffer.from(arrayBuffer).toString('utf-8')
         }
       }
-      // txt, docx 등은 텍스트로 읽기
-      return buffer.toString('utf-8')
+      return Buffer.from(arrayBuffer).toString('utf-8')
     }
 
     const announcementText = await extractText(announcementFile)

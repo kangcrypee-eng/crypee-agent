@@ -140,7 +140,7 @@ function Exec() {
         setGenStep('📄 기존 계획서 분석 중...')
         const text=await extractText(existingPlan)
         if(text.trim()){
-          extraData._existing_plan=text.substring(0,8000)
+          extraData._existing_plan=text.substring(0,15000)
           console.log('기존 계획서 텍스트 로드 완료:',text.length,'자')
         }else{
           console.warn('PDF에서 텍스트 추출 실패 - 스캔 이미지 PDF일 수 있습니다')
