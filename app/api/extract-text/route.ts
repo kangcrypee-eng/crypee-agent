@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+// pdf-parse v1 — require 방식이 Vercel serverless에서 안정적
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParse = require('pdf-parse')
 
 export const maxDuration = 30
 
@@ -9,12 +12,13 @@ export async function POST(request: NextRequest) {
     if (!file) return NextResponse.json({ error: '파일이 없습니다' }, { status: 400 })
 
     const buffer = Buffer.from(await file.arrayBuffer())
+    console.log('Extract text:', file.name, buffer.length, 'bytes')
 
     if (file.name.toLowerCase().endsWith('.pdf')) {
       try {
-        const pdfParse = (await import('pdf-parse')).default
         const data = await pdfParse(buffer)
         const text = (data.text || '').trim()
+        console.log('PDF parsed:', data.numpages, 'pages,', text.length, 'chars')
         if (!text) {
           return NextResponse.json({ success: true, text: '', pages: data.numpages, warning: '텍스트를 추출할 수 없습니다. 스캔 이미지 PDF일 수 있습니다.' })
         }

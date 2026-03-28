@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: mod.ai_model || 'claude-sonnet-4-6', max_tokens: mod.max_tokens || 4096, temperature: mod.temperature ?? 0.3, system: mod.system_prompt || '', messages: [{ role: 'user', content: fullPrompt }] }),
+      body: JSON.stringify({ model: mod.ai_model || 'claude-sonnet-4-6', max_tokens: Math.max(mod.max_tokens || 4096, mod.id?.startsWith('BP') ? 16384 : 4096), temperature: mod.temperature ?? 0.3, system: (mod.system_prompt || '') + (mod.id?.startsWith('BP') ? '\n\n[중요] 반드시 모든 섹션을 빠짐없이 끝까지 완성하세요. 절대 중간에 생략하거나 요약하지 마세요.' : ''), messages: [{ role: 'user', content: fullPrompt }] }),
     })
     const data = await res.json()
     if (!res.ok || data.error) throw new Error(data.error?.message || 'AI 생성 실패')

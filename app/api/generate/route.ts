@@ -19,7 +19,10 @@ export async function POST(request: NextRequest) {
     }
 
     const model = aiModel || 'claude-sonnet-4-6'
-    const body = { model, max_tokens: maxTokens || 4096, temperature: temperature ?? 0.3, system: systemPrompt || '', messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
+    // bizplan 등 긴 문서는 최소 16384 토큰 보장
+    const resolvedMaxTokens = Math.max(maxTokens || 4096, moduleId?.startsWith('BP') ? 16384 : 4096)
+    const sysPrompt = (systemPrompt || '') + (moduleId?.startsWith('BP') ? '\n\n[중요] 반드시 모든 섹션을 빠짐없이 끝까지 완성하세요. 절대 중간에 생략하거나 요약하지 마세요. 각 항목을 구체적으로 작성하세요.' : '')
+    const body = { model, max_tokens: resolvedMaxTokens, temperature: temperature ?? 0.3, system: sysPrompt, messages: [{ role: 'user', content: fullPrompt }], stream: !!useStream }
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

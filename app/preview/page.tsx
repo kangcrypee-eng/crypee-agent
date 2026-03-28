@@ -113,11 +113,33 @@ function Pv() {
     setRegenerating(false);setRegenProg(0)
   }
 
+  // 테이블 구분선 체크 (셀 단위 — | --- | --- | 등)
+  const isSepRow=(row:string)=>{
+    const cells=row.replace(/^\||\|$/g,'').split('|')
+    return cells.length>0&&cells.every(c=>/^[\s:\-]*$/.test(c))&&cells.some(c=>c.includes('-'))
+  }
+  const mdTableToHtml=(block:string,forPrint=false)=>{
+    const rows=block.trim().split('\n').filter(r=>r.includes('|')&&!isSepRow(r))
+    if(rows.length===0)return block
+    const style=forPrint?'':'style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px"'
+    let table=`<table ${style}>`
+    rows.forEach((row,i)=>{
+      const cells=row.split('|').filter(c=>c.trim()!=='')
+      const tag=i===0?'th':'td'
+      if(forPrint){
+        table+='<tr>'+cells.map(c=>`<${tag}>${c.trim()}</${tag}>`).join('')+'</tr>'
+      }else{
+        const st=i===0?'background:#f5f5f5;font-weight:600;':''
+        table+='<tr>'+cells.map(c=>`<${tag} style="border:1px solid #ddd;padding:8px 10px;${st}">${c.trim()}</${tag}>`).join('')+'</tr>'
+      }
+    })
+    return table+'</table>'
+  }
+
   const dl=()=>{
     const text=editing?editText:result;if(!text||!m)return
 
     if(fmt==='pdf'){
-      // PDF: 새 창에서 인쇄 (한글 + 표 + 양식 완벽 지원)
       const printWindow=window.open('','_blank')
       if(!printWindow)return
       printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${m.name}</title>
@@ -136,25 +158,13 @@ p{margin:6px 0}
 @media print{body{margin:0;padding:15mm}}
 @page{size:A4;margin:15mm}
 </style></head><body>`)
-      // 마크다운 → HTML 변환
       let html=text
         .replace(/^### (.+)$/gm,'<h3>$1</h3>')
         .replace(/^## (.+)$/gm,'<h2>$1</h2>')
         .replace(/^# (.+)$/gm,'<h1>$1</h1>')
         .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
         .replace(/━+/g,'<div class="section-divider"></div>')
-      // 마크다운 테이블 → HTML 테이블
-      html=html.replace(/(\|.+\|\n)+/g,(tableBlock)=>{
-        const rows=tableBlock.trim().split('\n').filter(r=>!r.match(/^\|[\s:\-|]+\|$/))
-        if(rows.length===0)return tableBlock
-        let t='<table>'
-        rows.forEach((row,i)=>{
-          const cells=row.split('|').filter(c=>c.trim())
-          const tag=i===0?'th':'td'
-          t+='<tr>'+cells.map(c=>`<${tag}>${c.trim()}</${tag}>`).join('')+'</tr>'
-        })
-        return t+'</table>'
-      })
+      html=html.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,true))
       html=html.replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br>')
       printWindow.document.write('<p>'+html+'</p>')
       printWindow.document.write('</body></html>')
@@ -165,28 +175,12 @@ p{margin:6px 0}
     }
   }
   const render=(t:string)=>{
-    // 마크다운 테이블 → HTML 테이블 변환
-    let html=t.replace(/(\|.+\|\n)+/g,(block)=>{
-      const rows=block.trim().split('\n').filter(r=>!r.match(/^\|[\s:\-|]+\|$/))
-      if(rows.length===0)return block
-      let table='<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px">'
-      rows.forEach((row,i)=>{
-        const cells=row.split('|').filter(c=>c.trim()!=='')
-        const tag=i===0?'th':'td'
-        const style=i===0?'background:#f5f5f5;font-weight:600;':'';
-        table+='<tr>'+cells.map(c=>`<${tag} style="border:1px solid #ddd;padding:8px 10px;${style}">${c.trim()}</${tag}>`).join('')+'</tr>'
-      })
-      return table+'</table>'
-    })
-    // 구분선
+    let html=t.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
     html=html.replace(/━+/g,'<hr style="border:none;border-top:2px solid #333;margin:16px 0">')
-    // 헤딩
     html=html.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>')
     html=html.replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>')
     html=html.replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>')
-    // 볼드
     html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    // 단락
     html=html.replace(/\n\n/g,'</p><p style="margin-bottom:10px">')
     html=html.replace(/\n/g,'<br>')
     return html
