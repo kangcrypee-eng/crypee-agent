@@ -101,16 +101,17 @@ function Exec() {
 
   // 파일 텍스트 추출 (PDF는 서버, 나머지는 클라이언트)
   const extractText=async(file:File):Promise<string>=>{
-    if(file.name.endsWith('.pdf')){
-      // PDF는 서버에서 추출
-      const fd=new FormData();fd.append('file',file)
+    if(file.name.toLowerCase().endsWith('.pdf')){
+      const formBody=new FormData();formBody.append('file',file)
       try{
-        const res=await fetch('/api/extract-text',{method:'POST',body:fd})
+        const res=await fetch('/api/extract-text',{method:'POST',body:formBody})
+        if(!res.ok){console.error('PDF extract failed:',res.status);return ''}
         const data=await res.json()
+        if(!data.text){console.error('PDF extract empty:',data);return ''}
+        console.log('PDF extracted:',data.text.length,'chars,',data.pages,'pages')
         return data.text||''
-      }catch{return ''}
+      }catch(e){console.error('PDF extract error:',e);return ''}
     }
-    // 텍스트 파일은 클라이언트에서
     return new Promise((resolve)=>{
       const reader=new FileReader()
       reader.onload=()=>resolve(reader.result as string||'')
@@ -135,7 +136,16 @@ function Exec() {
     // bizplan: 기존 사업계획서 텍스트를 추가 데이터에 포함
     const extraData={...fd}
     if(existingPlan){
-      try{const text=await extractText(existingPlan);if(text.trim())extraData._existing_plan=text.substring(0,8000)}catch{}
+      try{
+        setGenStep('📄 기존 계획서 분석 중...')
+        const text=await extractText(existingPlan)
+        if(text.trim()){
+          extraData._existing_plan=text.substring(0,8000)
+          console.log('기존 계획서 텍스트 로드 완료:',text.length,'자')
+        }else{
+          console.warn('PDF에서 텍스트 추출 실패 - 스캔 이미지 PDF일 수 있습니다')
+        }
+      }catch(e){console.error('기존 계획서 처리 실패:',e)}
     }
     if(images.length>0){
       extraData._uploaded_images=images.map(img=>img.name).join(', ')

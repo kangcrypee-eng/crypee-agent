@@ -145,7 +145,7 @@ p{margin:6px 0}
         .replace(/━+/g,'<div class="section-divider"></div>')
       // 마크다운 테이블 → HTML 테이블
       html=html.replace(/(\|.+\|\n)+/g,(tableBlock)=>{
-        const rows=tableBlock.trim().split('\n').filter(r=>!r.match(/^\|[\s-|]+\|$/))
+        const rows=tableBlock.trim().split('\n').filter(r=>!r.match(/^\|[\s:\-|]+\|$/))
         if(rows.length===0)return tableBlock
         let t='<table>'
         rows.forEach((row,i)=>{
@@ -167,7 +167,7 @@ p{margin:6px 0}
   const render=(t:string)=>{
     // 마크다운 테이블 → HTML 테이블 변환
     let html=t.replace(/(\|.+\|\n)+/g,(block)=>{
-      const rows=block.trim().split('\n').filter(r=>!r.match(/^\|[\s:-]+\|$/))
+      const rows=block.trim().split('\n').filter(r=>!r.match(/^\|[\s:\-|]+\|$/))
       if(rows.length===0)return block
       let table='<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px">'
       rows.forEach((row,i)=>{
