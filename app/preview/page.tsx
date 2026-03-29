@@ -198,13 +198,22 @@ p{margin:6px 0}
   const render=(t:string)=>{
     let html=t.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
     html=html.replace(/━+/g,'<hr style="border:none;border-top:2px solid #333;margin:16px 0">')
+    // 양식 섹션 헤더 (■ 1. 문제 인식, ■ 일반현황 등)
+    html=html.replace(/^#{1,2}\s*■\s*(.+)$/gm,'<div style="background:#1a1a2e;color:white;padding:10px 16px;margin:24px 0 12px;border-radius:4px;font-size:15px;font-weight:700">$1</div>')
+    html=html.replace(/^#{1,2}\s*□\s*(.+)$/gm,'<div style="background:#f8f9fa;border:2px solid #333;padding:10px 16px;margin:24px 0 12px;border-radius:4px;font-size:15px;font-weight:700;color:#111">□ $1</div>')
+    // 일반 헤딩
     html=html.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>')
     html=html.replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>')
     html=html.replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>')
     html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    // ◦/- 불릿 스타일
+    html=html.replace(/^◦\s*(.+)$/gm,'<div style="margin:12px 0 4px 8px;padding-left:12px;border-left:3px solid #2196F3;font-weight:600;color:#1a1a2e">◦ $1</div>')
+    html=html.replace(/^-\s+(.+)$/gm,'<div style="margin:2px 0 2px 28px;color:#444;line-height:1.7">- $1</div>')
     // [확인 필요] 하이라이트
     html=html.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 6px;border-radius:3px;font-size:12px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
-    // ⚠️ 작성자 확인 필요 블록 — 눈에 띄는 카드형 박스
+    // < 표 제목 > 스타일
+    html=html.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:13px;font-weight:600;color:#555;margin:12px 0 4px">< $1 ></div>')
+    // ⚠️ 작성자 확인 필요 블록
     html=html.replace(/(?:^|<br>)((?:>.*(?:<br>|$))+)/g,(match)=>{
       if(!match.includes('확인 필요')&&!match.includes('보완'))return match
       const inner=match.replace(/(?:^|<br>)>\s?/g,'<br>').replace(/^<br>/,'')
