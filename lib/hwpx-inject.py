@@ -16,7 +16,8 @@ with zipfile.ZipFile(src, 'r') as zin:
                 t = raw.decode('utf-8')
                 for old, new in tables.items():
                     if old and old in t:
-                        t = t.replace(old, html.escape(new) if new else ' ')
+                        safe = new.replace('<', '').replace('>', '') if new else ' '
+                        t = t.replace(old, safe)
                 for marker, content in bullets:
                     content = content.replace('>', '').replace('<', '')
                     escaped = html.escape(content)
