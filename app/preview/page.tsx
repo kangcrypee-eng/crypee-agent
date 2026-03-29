@@ -195,52 +195,85 @@ p{margin:6px 0}
       const b=new Blob([text],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=m.name+'.'+fmt;a.click()
     }
   }
+  // 양식 HTML 템플릿 기반 렌더링
   const render=(t:string)=>{
-    // 마크다운 표 → HTML 테이블 (양식 스타일)
-    let html=t.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
-    html=html.replace(/━+/g,'<hr style="border:none;border-top:2px solid #333;margin:16px 0">')
-    html=html.replace(/---\n/g,'')
+    // AI 마크다운에서 섹션 추출
+    const getSection=(start:string,end:string|null)=>{
+      const s=t.indexOf(start);if(s<0)return''
+      const after=t.substring(s+start.length)
+      const e=end?after.search(new RegExp(end)):after.length
+      return after.substring(0,e>0?e:after.length).trim()
+    }
+    // 테이블에서 값 추출
+    const tv=(key:string)=>{
+      const m=t.match(new RegExp(key+'[^|]*\\|\\s*([^|\\n]+)','i'))
+      return m?.[1]?.replace(/\*\*/g,'').trim()||''
+    }
+    // 마크다운 본문 → HTML (표+불릿+텍스트)
+    const bodyToHtml=(body:string)=>{
+      let h=body
+      // 표 변환
+      h=h.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
+      h=h.replace(/^### (.+)$/gm,'<div style="font-size:13px;font-weight:700;color:#1E293B;margin:14px 0 6px;padding:4px 0;border-bottom:1px solid #E2E8F0">$1</div>')
+      h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      h=h.replace(/^◦\s*(.+)$/gm,'<div style="margin:10px 0 3px 0;padding:6px 10px;background:#F8FAFC;border-left:3px solid #2563EB;font-weight:600;font-size:12px;color:#1E293B;line-height:1.6">◦ $1</div>')
+      h=h.replace(/^- (.+)$/gm,'<div style="margin:1px 0 1px 20px;padding:2px 0;color:#374151;font-size:12px;line-height:1.65">- $1</div>')
+      h=h.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 4px;border-radius:2px;font-size:10px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
+      h=h.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:11px;font-weight:600;color:#64748B;margin:10px 0 4px">&lt; $1 &gt;</div>')
+      h=h.replace(/\n\n/g,'</p><p style="margin-bottom:6px">')
+      h=h.replace(/\n/g,'<br>')
+      return h
+    }
 
-    // 양식 섹션 헤더 ■
-    html=html.replace(/^#{1,2}\s*■\s*(.+)$/gm,
-      '<div style="background:#1B2A4A;color:white;padding:11px 18px;margin:28px 0 14px;font-size:14px;font-weight:700;letter-spacing:0.5px;border-left:4px solid #3B82F6">■ $1</div>')
-    // □ 헤더
-    html=html.replace(/^#{1,2}\s*□\s*(.+)$/gm,
-      '<div style="background:#F1F5F9;border:1.5px solid #334155;padding:10px 16px;margin:24px 0 12px;font-size:14px;font-weight:700;color:#1E293B">□ $1</div>')
-    // ### 소제목
-    html=html.replace(/^### (.+)$/gm,
-      '<div style="font-size:13.5px;font-weight:700;color:#1E293B;margin:18px 0 8px;padding:6px 0;border-bottom:1.5px solid #E2E8F0">$1</div>')
-    // ## 일반
-    html=html.replace(/^## (.+)$/gm,
-      '<div style="font-size:15px;font-weight:700;color:#0F172A;margin:22px 0 10px;padding-bottom:6px;border-bottom:2px solid #CBD5E1">$1</div>')
-    // # 문서 제목
-    html=html.replace(/^# (.+)$/gm,
-      '<div style="font-size:18px;font-weight:800;color:#0F172A;text-align:center;margin:0 0 4px;padding:12px 0">$1</div>')
+    const S='style'
+    const th=`${S}="border:1px solid #333;padding:7px 10px;background:#F0F0F0;font-weight:600;font-size:11px;text-align:center;vertical-align:middle"`
+    const td=`${S}="border:1px solid #333;padding:7px 10px;font-size:11px;vertical-align:top;line-height:1.6"`
+    const hdr=`${S}="background:#1B2A4A;color:white;padding:8px 14px;font-size:13px;font-weight:700;margin:20px 0 8px;border-left:4px solid #3B82F6"`
+    const tbl=`${S}="width:100%;border-collapse:collapse;margin:8px 0"`
 
-    html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    // 섹션 본문
+    const sec1=getSection('■ 1. 문제 인식','■ 2. 실현')|| getSection('1. 문제 인식','2. 실현')
+    const sec2=getSection('■ 2. 실현 가능성','■ 3. 성장')|| getSection('2. 실현 가능성','3. 성장')
+    const sec3=getSection('■ 3. 성장전략','■ 4. 팀')|| getSection('3. 성장전략','4. 팀')
+    const sec4=getSection('■ 4. 팀 구성','$')|| getSection('4. 팀 구성','$')
 
-    // ◦ 대항목 — 양식 느낌
-    html=html.replace(/^◦\s*(.+)$/gm,
-      '<div style="margin:14px 0 4px 0;padding:8px 12px;background:#F8FAFC;border-left:3px solid #3B82F6;font-weight:600;font-size:13px;color:#1E293B;line-height:1.6">◦ $1</div>')
-    // - 소항목
-    html=html.replace(/^- (.+)$/gm,
-      '<div style="margin:2px 0 2px 20px;padding:4px 0;color:#374151;font-size:13px;line-height:1.7">　- $1</div>')
+    return `
+<div ${S}="font-family:'Noto Sans KR',sans-serif;font-size:11pt;line-height:1.6;color:#111">
 
-    // [확인 필요]
-    html=html.replace(/\[확인 필요\]/g,
-      '<span style="background:#FFF3CD;color:#856404;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
-    // < 표 제목 >
-    html=html.replace(/&lt;\s*(.+?)\s*&gt;/g,
-      '<div style="text-align:center;font-size:12px;font-weight:600;color:#64748B;margin:14px 0 6px;letter-spacing:0.5px">&lt; $1 &gt;</div>')
-    // ⚠️ 블록
-    html=html.replace(/(?:^|<br>)((?:>.*(?:<br>|$))+)/g,(match)=>{
-      if(!match.includes('확인 필요')&&!match.includes('보완'))return match
-      const inner=match.replace(/(?:^|<br>)>\s?/g,'<br>').replace(/^<br>/,'')
-      return `<div style="background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:2px solid #FFB300;border-radius:8px;padding:16px 20px;margin:16px 0"><div style="font-size:14px;font-weight:700;color:#E65100;margin-bottom:8px">⚠️ 제출 전 반드시 확인하세요</div>${inner}</div>`
-    })
-    html=html.replace(/\n\n/g,'</p><p style="margin-bottom:8px">')
-    html=html.replace(/\n/g,'<br>')
-    return html
+<div ${S}="text-align:center;font-size:16px;font-weight:800;margin-bottom:4px;padding:8px 0">창업사업화 지원사업 사업계획서</div>
+<div ${S}="text-align:center;font-size:13px;color:#555;margin-bottom:16px">${tv('기업.*명')||'[기업명]'}</div>
+
+<div ${hdr}>□ 일반현황</div>
+<table ${tbl}>
+<tr><th ${th} width="22%">창업아이템명</th><td ${td} colspan="3">${tv('창업아이템명')||tv('아이템명')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>산출물<br>(협약기간 내 목표)</th><td ${td} colspan="3">${tv('산출물')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>직업</th><td ${td}>${tv('직업')||'[확인 필요]'}</td><th ${th}>기업(예정)명</th><td ${td}>${tv('기업.*명')||'[확인 필요]'}</td></tr>
+</table>
+
+<div ${hdr}>□ 창업 아이템 개요(요약)</div>
+<table ${tbl}>
+<tr><th ${th} width="15%">명 칭</th><td ${td} width="35%">${tv('명\\s*칭')||'[확인 필요]'}</td><th ${th} width="15%">범 주</th><td ${td} width="35%">${tv('범\\s*주')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>아이템 개요</th><td ${td} colspan="3">${tv('아이템 개요')||getSection('아이템 개요','문제 인식')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>문제 인식<br>(Problem)</th><td ${td} colspan="3">${tv('문제 인식')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>실현 가능성<br>(Solution)</th><td ${td} colspan="3">${tv('실현 가능성')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>성장전략<br>(Scale-up)</th><td ${td} colspan="3">${tv('성장전략')||tv('성장 전략')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>팀 구성<br>(Team)</th><td ${td} colspan="3">${tv('팀 구성')||'[확인 필요]'}</td></tr>
+</table>
+
+<div ${hdr}>1. 문제 인식 (Problem) — 창업 아이템의 필요성</div>
+${bodyToHtml(sec1)}
+
+<div ${hdr}>2. 실현 가능성 (Solution) — 창업 아이템의 개발 계획</div>
+${bodyToHtml(sec2)}
+
+<div ${hdr}>3. 성장전략 (Scale-up) — 사업화 추진 전략</div>
+${bodyToHtml(sec3)}
+
+<div ${hdr}>4. 팀 구성 (Team) — 대표자 및 팀원 구성 계획</div>
+${bodyToHtml(sec4)}
+
+<div ${S}="background:#FFF8E1;border:1px solid #FFB300;border-radius:6px;padding:10px 14px;margin:16px 0;font-size:10px;color:#795548">⚠️ 본 문서는 AI가 자동 생성한 초안이며, <strong>모든 내용은 반드시 검토가 필요합니다.</strong> [확인 필요] 항목은 반드시 보완이 필요합니다.</div>
+</div>`
   }
 
   if(ld)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
