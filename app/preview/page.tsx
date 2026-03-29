@@ -196,30 +196,49 @@ p{margin:6px 0}
     }
   }
   const render=(t:string)=>{
+    // 마크다운 표 → HTML 테이블 (양식 스타일)
     let html=t.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
     html=html.replace(/━+/g,'<hr style="border:none;border-top:2px solid #333;margin:16px 0">')
-    // 양식 섹션 헤더 (■ 1. 문제 인식, ■ 일반현황 등)
-    html=html.replace(/^#{1,2}\s*■\s*(.+)$/gm,'<div style="background:#1a1a2e;color:white;padding:10px 16px;margin:24px 0 12px;border-radius:4px;font-size:15px;font-weight:700">$1</div>')
-    html=html.replace(/^#{1,2}\s*□\s*(.+)$/gm,'<div style="background:#f8f9fa;border:2px solid #333;padding:10px 16px;margin:24px 0 12px;border-radius:4px;font-size:15px;font-weight:700;color:#111">□ $1</div>')
-    // 일반 헤딩
-    html=html.replace(/^### (.+)$/gm,'<h3 style="font-size:14px;font-weight:600;color:#333;margin:14px 0 6px">$1</h3>')
-    html=html.replace(/^## (.+)$/gm,'<h2 style="font-size:16px;font-weight:600;color:#222;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e8e8e8">$1</h2>')
-    html=html.replace(/^# (.+)$/gm,'<h1 style="font-size:20px;font-weight:700;color:#111;margin-bottom:8px">$1</h1>')
+    html=html.replace(/---\n/g,'')
+
+    // 양식 섹션 헤더 ■
+    html=html.replace(/^#{1,2}\s*■\s*(.+)$/gm,
+      '<div style="background:#1B2A4A;color:white;padding:11px 18px;margin:28px 0 14px;font-size:14px;font-weight:700;letter-spacing:0.5px;border-left:4px solid #3B82F6">■ $1</div>')
+    // □ 헤더
+    html=html.replace(/^#{1,2}\s*□\s*(.+)$/gm,
+      '<div style="background:#F1F5F9;border:1.5px solid #334155;padding:10px 16px;margin:24px 0 12px;font-size:14px;font-weight:700;color:#1E293B">□ $1</div>')
+    // ### 소제목
+    html=html.replace(/^### (.+)$/gm,
+      '<div style="font-size:13.5px;font-weight:700;color:#1E293B;margin:18px 0 8px;padding:6px 0;border-bottom:1.5px solid #E2E8F0">$1</div>')
+    // ## 일반
+    html=html.replace(/^## (.+)$/gm,
+      '<div style="font-size:15px;font-weight:700;color:#0F172A;margin:22px 0 10px;padding-bottom:6px;border-bottom:2px solid #CBD5E1">$1</div>')
+    // # 문서 제목
+    html=html.replace(/^# (.+)$/gm,
+      '<div style="font-size:18px;font-weight:800;color:#0F172A;text-align:center;margin:0 0 4px;padding:12px 0">$1</div>')
+
     html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    // ◦/- 불릿 스타일
-    html=html.replace(/^◦\s*(.+)$/gm,'<div style="margin:12px 0 4px 8px;padding-left:12px;border-left:3px solid #2196F3;font-weight:600;color:#1a1a2e">◦ $1</div>')
-    html=html.replace(/^-\s+(.+)$/gm,'<div style="margin:2px 0 2px 28px;color:#444;line-height:1.7">- $1</div>')
-    // [확인 필요] 하이라이트
-    html=html.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 6px;border-radius:3px;font-size:12px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
-    // < 표 제목 > 스타일
-    html=html.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:13px;font-weight:600;color:#555;margin:12px 0 4px">< $1 ></div>')
-    // ⚠️ 작성자 확인 필요 블록
+
+    // ◦ 대항목 — 양식 느낌
+    html=html.replace(/^◦\s*(.+)$/gm,
+      '<div style="margin:14px 0 4px 0;padding:8px 12px;background:#F8FAFC;border-left:3px solid #3B82F6;font-weight:600;font-size:13px;color:#1E293B;line-height:1.6">◦ $1</div>')
+    // - 소항목
+    html=html.replace(/^- (.+)$/gm,
+      '<div style="margin:2px 0 2px 20px;padding:4px 0;color:#374151;font-size:13px;line-height:1.7">　- $1</div>')
+
+    // [확인 필요]
+    html=html.replace(/\[확인 필요\]/g,
+      '<span style="background:#FFF3CD;color:#856404;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
+    // < 표 제목 >
+    html=html.replace(/&lt;\s*(.+?)\s*&gt;/g,
+      '<div style="text-align:center;font-size:12px;font-weight:600;color:#64748B;margin:14px 0 6px;letter-spacing:0.5px">&lt; $1 &gt;</div>')
+    // ⚠️ 블록
     html=html.replace(/(?:^|<br>)((?:>.*(?:<br>|$))+)/g,(match)=>{
       if(!match.includes('확인 필요')&&!match.includes('보완'))return match
       const inner=match.replace(/(?:^|<br>)>\s?/g,'<br>').replace(/^<br>/,'')
-      return `<div style="background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:2px solid #FFB300;border-radius:12px;padding:20px 24px;margin:20px 0;box-shadow:0 2px 8px rgba(255,179,0,0.15)"><div style="font-size:16px;font-weight:700;color:#E65100;margin-bottom:12px">⚠️ 제출 전 반드시 확인하세요</div>${inner}</div>`
+      return `<div style="background:linear-gradient(135deg,#FFF8E1,#FFF3CD);border:2px solid #FFB300;border-radius:8px;padding:16px 20px;margin:16px 0"><div style="font-size:14px;font-weight:700;color:#E65100;margin-bottom:8px">⚠️ 제출 전 반드시 확인하세요</div>${inner}</div>`
     })
-    html=html.replace(/\n\n/g,'</p><p style="margin-bottom:10px">')
+    html=html.replace(/\n\n/g,'</p><p style="margin-bottom:8px">')
     html=html.replace(/\n/g,'<br>')
     return html
   }
