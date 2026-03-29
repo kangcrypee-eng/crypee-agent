@@ -268,6 +268,9 @@ p{margin:6px 0}
           </div>
         )
         :<div className="p-7 min-h-[320px] sm:min-h-[480px] text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result)+'</p>'}}/>}
+        <div className="px-4 py-3 border-t" style={{borderColor:'var(--border)',background:'var(--surface-hover)'}}>
+          <p className="text-[11px] leading-relaxed" style={{color:'var(--text-muted)'}}>⚠️ 본 문서는 AI가 자동 생성한 초안이며, <strong style={{color:'var(--text-secondary)'}}>모든 내용은 반드시 검토가 필요합니다.</strong> 수치, 통계, 사업비 등은 실제 데이터로 확인·수정 후 제출하세요. [확인 필요] 표시 항목은 반드시 보완이 필요합니다.</p>
+        </div>
       </div>
       {chains.length>0&&<div className="rounded-[10px] p-4 mt-3 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-muted)'}}>🔗 연결 모듈</p><div className="flex gap-1.5 flex-wrap">{chains.map(c=><button key={c.id} onClick={()=>router.push('/execute?id='+c.id)} className="px-3 py-1.5 border rounded-md text-[12px]" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>{c.icon} {c.name}</button>)}</div></div>}
     </div>
