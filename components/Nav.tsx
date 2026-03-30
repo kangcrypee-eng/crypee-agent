@@ -24,8 +24,7 @@ export default function Nav() {
         {/* 데스크톱 메뉴 */}
         <div className="hidden md:flex gap-1">
           <NL href="/market" cur={path}>모듈</NL>
-          <NL href="/request" cur={path}>문의</NL>
-          {user && <NL href="/mypage" cur={path}>마이페이지</NL>}
+          <NL href="/request" cur={path}>모듈 문의</NL>
           {isAdmin && <NL href="/admin" cur={path}>어드민</NL>}
         </div>
 
@@ -37,6 +36,7 @@ export default function Nav() {
 
         {user ? (
           <div className="hidden sm:flex items-center gap-2">
+            <Link href="/mypage" className="text-[12px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>마이페이지</Link>
             <Link href="/profile" className="w-[34px] h-[34px] rounded-full border flex items-center justify-center text-[12px] font-bold" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               {(user.representative||user.business_name||user.email||'U')[0].toUpperCase()}
             </Link>
