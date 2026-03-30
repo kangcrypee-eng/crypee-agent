@@ -102,7 +102,7 @@ export default function Home() {
                   <h3 className="text-[13.5px] font-semibold mb-0.5">{m.name}</h3>
                   <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{m.description}</p>
                   <p className="text-[12px] font-semibold mt-2" style={{ color: 'var(--accent)' }}>
-                    {m.mode === 'bizplan' ? '무료 생성' : (m.price_krw || 0) === 0 ? '무료' : `₩${(m.price_krw || 0).toLocaleString()}${m.mode === 'alert' ? '/월' : ''}`}
+                    {(m.price_krw || 0) === 0 ? '무료' : (m.price_krw || 0) === 0 ? '무료' : `₩${(m.price_krw || 0).toLocaleString()}${m.mode === 'alert' ? '/월' : ''}`}
                   </p>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export default function Home() {
                     <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{m.description}</p>
                   </div>
                   <span className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>
-                    {m.mode === 'bizplan' ? '무료 생성' : (m.price_krw || 0) === 0 ? '무료' : `₩${(m.price_krw || 0).toLocaleString()}`}
+                    {(m.price_krw || 0) === 0 ? '무료' : (m.price_krw || 0) === 0 ? '무료' : `₩${(m.price_krw || 0).toLocaleString()}`}
                   </span>
                 </div>
               </Link>

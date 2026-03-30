@@ -51,7 +51,7 @@ export default function MarketPage() {
         <div key={m.id} onClick={()=>setSelected(m)} className="rounded-[10px] p-4 cursor-pointer border transition-all hover:opacity-90 relative" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <div className="absolute top-3 right-3"><span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border" style={modeStyle(m.mode)}>{ML[m.mode]||m.mode}</span></div>
           <div className="flex items-start gap-2.5 mb-2"><div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{background:modeBg(m.mode)}}>{m.icon||'📄'}</div><div><div className="text-[13.5px] font-semibold mb-0.5 pr-16">{m.name}</div><div className="text-[11.5px] leading-relaxed" style={{color:'var(--text-muted)'}}>{m.description}</div></div></div>
-          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span style={{color:'var(--accent)',fontWeight:600}}>{m.mode==='bizplan'?'무료 생성':(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}${m.mode==='alert'?'/월':''}`}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
+          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span style={{color:'var(--accent)',fontWeight:600}}>{(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}${m.mode==='alert'?'/월':''}`}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
         </div>
       )}</div>}
 
@@ -108,7 +108,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'무료로 생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>
