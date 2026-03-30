@@ -8,6 +8,29 @@ const ML:Record<string,string> = {oneclick:'⚡ 원클릭',form:'📝 폼',chat:
 
 const render=(t:string)=>t.replace(/^### (.+)$/gm,'<h3 style="font-size:13px;font-weight:600;color:#333;margin:10px 0 4px">$1</h3>').replace(/^## (.+)$/gm,'<h2 style="font-size:15px;font-weight:600;color:#222;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid #e8e8e8">$1</h2>').replace(/^# (.+)$/gm,'<h1 style="font-size:18px;font-weight:700;color:#111;margin-bottom:6px">$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'</p><p style="margin-bottom:8px">').replace(/\n/g,'<br>')
 
+const isSepRow=(row:string)=>{const cells=row.replace(/^\||\|$/g,'').split('|');return cells.length>0&&cells.every(c=>/^[\s:\-]*$/.test(c))&&cells.some(c=>c.includes('-'))}
+const tblHtml=(block:string)=>{const rows=block.trim().split('\n').filter(r=>r.includes('|')&&!isSepRow(r));if(!rows.length)return block;let t='<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:11px">';rows.forEach((r,i)=>{const cells=r.split('|').filter(c=>c.trim()!=='');const tag=i===0?'th':'td';const st=i===0?'background:#f5f5f5;font-weight:600;':'';t+='<tr>'+cells.map(c=>`<${tag} style="border:1px solid #ddd;padding:6px 8px;${st}">${c.trim()}</${tag}>`).join('')+'</tr>'});return t+'</table>'}
+const renderBp=(t:string)=>{
+  const tv=(k:string)=>{const m=t.match(new RegExp('\\|\\s*'+k+'\\s*\\|\\s*([^|\\n]+)','i'));return m?.[1]?.replace(/\*\*/g,'').trim()||''}
+  const gs=(s:string,e:string|null)=>{const i=t.indexOf(s);if(i<0)return '';const a=t.substring(i+s.length);const j=e?a.search(new RegExp(e)):a.length;return a.substring(0,j>0?j:a.length).trim()}
+  const bh=(b:string)=>{let h=b;h=h.replace(/(\|.+\|\n)+/g,block=>tblHtml(block));h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');h=h.replace(/^◦\s*(.+)$/gm,'<div style="margin:8px 0 2px;padding:4px 8px;background:#F8FAFC;border-left:3px solid #2563EB;font-weight:600;font-size:11px;color:#1E293B;line-height:1.5">◦ $1</div>');h=h.replace(/^- (.+)$/gm,'<div style="margin:1px 0 1px 16px;padding:1px 0;color:#374151;font-size:11px;line-height:1.5">- $1</div>');h=h.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:0 3px;border-radius:2px;font-size:9px;font-weight:600">확인 필요</span>');h=h.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:10px;font-weight:600;color:#64748B;margin:8px 0 3px">&lt; $1 &gt;</div>');h=h.replace(/\n\n/g,'<br>');h=h.replace(/\n/g,'<br>');return h}
+  const S='style',th=`${S}="border:1px solid #333;padding:5px 8px;background:#F0F0F0;font-weight:600;font-size:10px;text-align:center;vertical-align:middle"`,td=`${S}="border:1px solid #333;padding:5px 8px;font-size:10px;vertical-align:top;line-height:1.5"`,hdr=`${S}="background:#1B2A4A;color:white;padding:6px 10px;font-size:11px;font-weight:700;margin:14px 0 6px;border-left:3px solid #3B82F6"`,tbl=`${S}="width:100%;border-collapse:collapse;margin:6px 0"`
+  const s1=gs('■ 1. 문제','■ 2. 실현')||gs('1. 문제 인식','2. 실현'),s2=gs('■ 2. 실현','■ 3. 성장')||gs('2. 실현 가능성','3. 성장'),s3=gs('■ 3. 성장','■ 4. 팀')||gs('3. 성장전략','4. 팀'),s4=gs('■ 4. 팀','$')||gs('4. 팀 구성','$')
+  return `<div ${S}="font-family:'Noto Sans KR',sans-serif;font-size:10px;line-height:1.5;color:#111">
+<div ${S}="text-align:center;font-size:13px;font-weight:800;margin-bottom:3px">예비창업패키지 사업계획서</div>
+<div ${hdr}>□ 일반현황</div>
+<table ${tbl}><tr><th ${th} width="22%">창업아이템명</th><td ${td} colspan="3">${tv('창업아이템명')||tv('아이템명')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>산출물</th><td ${td} colspan="3">${tv('산출물')||'[확인 필요]'}</td></tr></table>
+<div ${hdr}>□ 개요(요약)</div>
+<table ${tbl}><tr><th ${th} width="15%">명 칭</th><td ${td} width="35%">${tv('명\\s*칭')||'[확인 필요]'}</td><th ${th} width="15%">범 주</th><td ${td} width="35%">${tv('범\\s*주')||'[확인 필요]'}</td></tr>
+<tr><th ${th}>아이템 개요</th><td ${td} colspan="3">${tv('아이템 개요')||'[확인 필요]'}</td></tr></table>
+<div ${hdr}>1. 문제 인식 (Problem)</div>${bh(s1)}
+<div ${hdr}>2. 실현 가능성 (Solution)</div>${bh(s2)}
+<div ${hdr}>3. 성장전략 (Scale-up)</div>${bh(s3)}
+<div ${hdr}>4. 팀 구성 (Team)</div>${bh(s4)}
+</div>`
+}
+
 export default function MarketPage() {
   const [cat,setCat]=useState('전체');const [search,setSearch]=useState('');const [mods,setMods]=useState<any[]>([]);const [loading,setLoading]=useState(true);const router=useRouter()
   const [selected,setSelected]=useState<any>(null);const [showSample,setShowSample]=useState(false)
@@ -28,7 +51,7 @@ export default function MarketPage() {
         <div key={m.id} onClick={()=>setSelected(m)} className="rounded-[10px] p-4 cursor-pointer border transition-all hover:opacity-90 relative" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
           <div className="absolute top-3 right-3"><span className="inline-flex px-2 py-0.5 rounded text-[10.5px] font-semibold border" style={modeStyle(m.mode)}>{ML[m.mode]||m.mode}</span></div>
           <div className="flex items-start gap-2.5 mb-2"><div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{background:modeBg(m.mode)}}>{m.icon||'📄'}</div><div><div className="text-[13.5px] font-semibold mb-0.5 pr-16">{m.name}</div><div className="text-[11.5px] leading-relaxed" style={{color:'var(--text-muted)'}}>{m.description}</div></div></div>
-          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span style={{color:'var(--accent)',fontWeight:600}}>{(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}${m.mode==='alert'?'/월':''}`}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
+          <div className="flex items-center gap-1.5 mt-2.5 text-[11px]" style={{color:'var(--text-muted)'}}><span style={{color:'var(--accent)',fontWeight:600}}>{m.mode==='bizplan'?'무료 생성':(m.price_krw||0)===0?'무료':`₩${(m.price_krw||0).toLocaleString()}${m.mode==='alert'?'/월':''}`}</span><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span>{(m.uses||0).toLocaleString()}회</span>{m.sample_output&&<><span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/><span style={{color:'var(--accent)'}}>예시</span></>}</div>
         </div>
       )}</div>}
 
@@ -47,7 +70,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex items-center gap-3 mb-4 text-[12px]" style={{color:'var(--text-muted)'}}>
-              <span>{(selected.price_krw||0)===0?'무료':`₩${(selected.price_krw||0).toLocaleString()}`}</span>
+              <span>{selected.mode==='bizplan'?'무료 생성':(selected.price_krw||0)===0?'무료':`₩${(selected.price_krw||0).toLocaleString()}`}</span>
               <span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/>
               <span>{selected.category}</span>
               <span className="w-0.5 h-0.5 rounded-full" style={{background:'var(--text-muted)'}}/>
@@ -62,7 +85,7 @@ export default function MarketPage() {
               <p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-secondary)'}}>미리보기</p>
               {selected.sample_output?(
                 <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
-                  <div className="p-5 max-h-[250px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+render(selected.sample_output)+'</p>'}}/>
+                  <div className="p-5 max-h-[250px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:selected.mode==='bizplan'?renderBp(selected.sample_output):'<p>'+render(selected.sample_output)+'</p>'}}/>
                 </div>
               ):(selected.mode==='alert'||selected.output_mode==='automation')?(
                 <div className="rounded-lg overflow-hidden border p-3" style={{borderColor:'var(--border-strong)',background:'#F5F5F5'}}>
@@ -85,7 +108,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'무료로 생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>

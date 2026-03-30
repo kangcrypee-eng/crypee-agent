@@ -243,7 +243,7 @@ ${extraData._existing_plan}
   const modeStyle=(md:string)=>({background:`var(--mode-${md}-bg)`,color:`var(--mode-${md}-text)`,borderColor:`var(--mode-${md}-border)`})
   const modeBg=(md:string)=>`var(--mode-${md}-bg)`
   const price=m.price_krw||0
-  const btnText=price===0?'무료 실행':`실행하기 · ${fmtPrice(price)}`
+  const btnText=m.mode==='bizplan'?'무료로 생성하기':price===0?'무료 실행':`실행하기 · ${fmtPrice(price)}`
   const hasAutoFields=autoFields.length>0
   const isChat=mode==='chat'
   const showInputForm=!isChat&&hasAutoFields
