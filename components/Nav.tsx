@@ -36,11 +36,11 @@ export default function Nav() {
 
         {user ? (
           <div className="hidden sm:flex items-center gap-2">
-            <Link href="/mypage" className="text-[12px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>마이페이지</Link>
             <Link href="/profile" className="w-[34px] h-[34px] rounded-full border flex items-center justify-center text-[12px] font-bold" style={{background:'var(--surface)',borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>
               {(user.representative||user.business_name||user.email||'U')[0].toUpperCase()}
             </Link>
-            <button onClick={logout} className="text-[12px] ml-1 hover:opacity-80" style={{color:'var(--text-muted)'}}>로그아웃</button>
+            <Link href="/mypage" className="text-[12px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>마이페이지</Link>
+            <button onClick={logout} className="text-[12px] hover:opacity-80" style={{color:'var(--text-muted)'}}>로그아웃</button>
           </div>
         ) : (
           <div className="hidden sm:flex gap-2">
