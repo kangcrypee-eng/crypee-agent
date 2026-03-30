@@ -142,8 +142,7 @@ export default function ModuleDetailPage() {
       {/* 가격 + CTA */}
       <div className="flex items-center gap-3 mb-6">
         <Link href={executeUrl} className="flex-1 py-3.5 font-semibold text-[14px] rounded-lg text-center hover:opacity-90 transition-all" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
-          {isAlert ? '알림 설정하기' : price === 0 ? '무료 실행' : `실행하기 · ₩${price.toLocaleString()}`}
-          {isAlert && price > 0 ? ` · ₩${price.toLocaleString()}/월` : ''}
+          {isAlert ? `알림 설정하기${price > 0 ? ` · ₩${price.toLocaleString()}/월` : ''}` : m.mode === 'bizplan' ? '무료로 생성하기' : price === 0 ? '무료 실행' : `실행하기 · ₩${price.toLocaleString()}`}
         </Link>
       </div>
 
@@ -230,7 +229,7 @@ export default function ModuleDetailPage() {
         <p className="text-[14px] font-semibold mb-2">지금 바로 사용해보세요</p>
         <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>{m.description}</p>
         <Link href={executeUrl} className="inline-block px-6 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
-          {isAlert ? '알림 설정하기' : '실행하기'}
+          {isAlert ? '알림 설정하기' : m.mode === 'bizplan' ? '무료로 생성하기' : '실행하기'}
         </Link>
       </div>
     </div>
