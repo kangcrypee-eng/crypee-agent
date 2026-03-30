@@ -15,6 +15,77 @@ const renderHtml = (t: string) => t
   .replace(/\n\n/g, '</p><p style="margin-bottom:8px">')
   .replace(/\n/g, '<br>')
 
+// 사업계획서 양식 렌더링 (preview/page.tsx render()와 동일)
+const renderBizplan = (t: string) => {
+  const isSepRow = (row: string) => {
+    const cells = row.replace(/^\||\|$/g, '').split('|')
+    return cells.length > 0 && cells.every(c => /^[\s:\-]*$/.test(c)) && cells.some(c => c.includes('-'))
+  }
+  const mdTableToHtml = (block: string) => {
+    const rows = block.trim().split('\n').filter(r => r.includes('|') && !isSepRow(r))
+    if (rows.length === 0) return block
+    let table = '<table style="width:100%;border-collapse:collapse;margin:10px 0;font-size:13px">'
+    rows.forEach((row, i) => {
+      const cells = row.split('|').filter(c => c.trim() !== '')
+      const tag = i === 0 ? 'th' : 'td'
+      const st = i === 0 ? 'background:#f5f5f5;font-weight:600;' : ''
+      table += '<tr>' + cells.map(c => `<${tag} style="border:1px solid #ddd;padding:8px 10px;${st}">${c.trim()}</${tag}>`).join('') + '</tr>'
+    })
+    return table + '</table>'
+  }
+  const tv = (key: string) => {
+    const m = t.match(new RegExp('\\|\\s*' + key + '\\s*\\|\\s*([^|\\n]+)', 'i'))
+    return m?.[1]?.replace(/\*\*/g, '').trim() || ''
+  }
+  const getSection = (start: string, end: string | null) => {
+    const s = t.indexOf(start); if (s < 0) return ''
+    const after = t.substring(s + start.length)
+    const e = end ? after.search(new RegExp(end)) : after.length
+    return after.substring(0, e > 0 ? e : after.length).trim()
+  }
+  const bodyToHtml = (body: string) => {
+    let h = body
+    h = h.replace(/(\|.+\|\n)+/g, (block) => mdTableToHtml(block))
+    h = h.replace(/^### (.+)$/gm, '<div style="font-size:13px;font-weight:700;color:#1E293B;margin:14px 0 6px;padding:4px 0;border-bottom:1px solid #E2E8F0">$1</div>')
+    h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    h = h.replace(/^◦\s*(.+)$/gm, '<div style="margin:10px 0 3px 0;padding:6px 10px;background:#F8FAFC;border-left:3px solid #2563EB;font-weight:600;font-size:12px;color:#1E293B;line-height:1.6">◦ $1</div>')
+    h = h.replace(/^- (.+)$/gm, '<div style="margin:1px 0 1px 20px;padding:2px 0;color:#374151;font-size:12px;line-height:1.65">- $1</div>')
+    h = h.replace(/\[확인 필요\]/g, '<span style="background:#FFF3CD;color:#856404;padding:1px 4px;border-radius:2px;font-size:10px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
+    h = h.replace(/&lt;\s*(.+?)\s*&gt;/g, '<div style="text-align:center;font-size:11px;font-weight:600;color:#64748B;margin:10px 0 4px">&lt; $1 &gt;</div>')
+    h = h.replace(/\n\n/g, '</p><p style="margin-bottom:6px">')
+    h = h.replace(/\n/g, '<br>')
+    return h
+  }
+  const S = 'style'
+  const th = `${S}="border:1px solid #333;padding:7px 10px;background:#F0F0F0;font-weight:600;font-size:11px;text-align:center;vertical-align:middle"`
+  const td = `${S}="border:1px solid #333;padding:7px 10px;font-size:11px;vertical-align:top;line-height:1.6"`
+  const hdr = `${S}="background:#1B2A4A;color:white;padding:8px 14px;font-size:13px;font-weight:700;margin:20px 0 8px;border-left:4px solid #3B82F6"`
+  const tbl = `${S}="width:100%;border-collapse:collapse;margin:8px 0"`
+  const sec1 = getSection('■ 1. 문제 인식', '■ 2. 실현') || getSection('1. 문제 인식', '2. 실현')
+  const sec2 = getSection('■ 2. 실현 가능성', '■ 3. 성장') || getSection('2. 실현 가능성', '3. 성장')
+  const sec3 = getSection('■ 3. 성장전략', '■ 4. 팀') || getSection('3. 성장전략', '4. 팀')
+  const sec4 = getSection('■ 4. 팀 구성', '$') || getSection('4. 팀 구성', '$')
+  return `<div ${S}="font-family:'Noto Sans KR',sans-serif;font-size:11pt;line-height:1.6;color:#111">
+<div ${S}="text-align:center;font-size:16px;font-weight:800;margin-bottom:4px;padding:8px 0">예비창업패키지 사업계획서</div>
+<div ${S}="text-align:center;font-size:13px;color:#555;margin-bottom:16px">${tv('기업.*명') || '[기업명]'}</div>
+<div ${hdr}>□ 일반현황</div>
+<table ${tbl}><tr><th ${th} width="22%">창업아이템명</th><td ${td} colspan="3">${tv('창업아이템명') || tv('아이템명') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>산출물</th><td ${td} colspan="3">${tv('산출물') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>직업</th><td ${td}>${tv('직업') || '[확인 필요]'}</td><th ${th}>기업(예정)명</th><td ${td}>${tv('기업.*명') || '[확인 필요]'}</td></tr></table>
+<div ${hdr}>□ 창업 아이템 개요(요약)</div>
+<table ${tbl}><tr><th ${th} width="15%">명 칭</th><td ${td} width="35%">${tv('명\\s*칭') || '[확인 필요]'}</td><th ${th} width="15%">범 주</th><td ${td} width="35%">${tv('범\\s*주') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>아이템 개요</th><td ${td} colspan="3">${tv('아이템 개요') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>문제 인식</th><td ${td} colspan="3">${tv('문제 인식') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>실현 가능성</th><td ${td} colspan="3">${tv('실현\\s*가능성?') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>성장전략</th><td ${td} colspan="3">${tv('성장\\s*전략') || '[확인 필요]'}</td></tr>
+<tr><th ${th}>팀 구성</th><td ${td} colspan="3">${tv('팀\\s*구성') || '[확인 필요]'}</td></tr></table>
+<div ${hdr}>1. 문제 인식 (Problem)</div>${bodyToHtml(sec1)}
+<div ${hdr}>2. 실현 가능성 (Solution)</div>${bodyToHtml(sec2)}
+<div ${hdr}>3. 성장전략 (Scale-up)</div>${bodyToHtml(sec3)}
+<div ${hdr}>4. 팀 구성 (Team)</div>${bodyToHtml(sec4)}
+</div>`
+}
+
 export default function ModuleDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -91,7 +162,7 @@ export default function ModuleDetailPage() {
           </div>
           <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
             {slides[slideIdx]?.type === 'text' && (
-              <div className="p-6 text-[13px] leading-[1.8] max-h-[400px] overflow-y-auto" style={{ background: 'var(--preview-bg)', color: 'var(--preview-text)' }} dangerouslySetInnerHTML={{ __html: '<p>' + renderHtml(slides[slideIdx].content) + '</p>' }} />
+              <div className="p-6 text-[13px] leading-[1.8] max-h-[400px] overflow-y-auto" style={{ background: 'var(--preview-bg)', color: 'var(--preview-text)' }} dangerouslySetInnerHTML={{ __html: m.mode === 'bizplan' ? renderBizplan(slides[slideIdx].content) : '<p>' + renderHtml(slides[slideIdx].content) + '</p>' }} />
             )}
             {slides[slideIdx]?.type === 'email' && (
               <div className="p-4" style={{ background: '#F5F5F5' }}>
