@@ -119,10 +119,10 @@ function parseMarkdown(md: string): [string, string][] {
     if (cur && marker && count < limit) { items.push([marker, cur.replace(/[<>]/g, '')]); count++ }
   }
 
-  extract('■ 1. 문제', '■ 2. 실현', 6)
-  extract('■ 2. 실현', '■ 3. 성장', 5)
-  extract('■ 3. 성장', '■ 4. 팀', 6)
-  extract('■ 4. 팀', null, 3)
+  extract('■ 1. 문제', '■ 2. 실현', 10)
+  extract('■ 2. 실현', '■ 3. 성장', 10)
+  extract('■ 3. 성장', '■ 4. 팀', 10)
+  extract('■ 4. 팀', null, 5)
 
   // 마크다운에 ■가 없으면 #으로 시도
   if (items.length === 0) {
@@ -133,6 +133,28 @@ function parseMarkdown(md: string): [string, string][] {
   }
 
   return items
+}
+
+// 마크다운에서 특정 표 제목 아래의 행들을 추출 (헤더 제외)
+function extractTableRows(plain: string, titlePattern: string): string[][] {
+  const rows: string[][] = []
+  const titleMatch = plain.match(new RegExp(titlePattern, 'i'))
+  if (!titleMatch) return rows
+  const startIdx = titleMatch.index! + titleMatch[0].length
+  const lines = plain.substring(startIdx, startIdx + 3000).split('\n')
+  let foundHeader = false
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('|')) {
+      if (foundHeader && rows.length > 0) break // 표 끝
+      continue
+    }
+    if (trimmed.match(/^\|[\s-|]+$/)) { foundHeader = true; continue } // 구분선
+    if (!foundHeader) { foundHeader = true; continue } // 헤더 행 스킵
+    const cells = trimmed.split('|').slice(1, -1).map(c => c.trim())
+    if (cells.length > 0) rows.push(cells)
+  }
+  return rows
 }
 
 function extractTableData(md: string): Record<string, string> {
@@ -189,37 +211,107 @@ function extractTableData(md: string): Record<string, string> {
     d['S/W 제작·개발'] = kv['협력2역량'] || '[확인 필요]'
     d['웹사이트 제작 용역'] = kv['협력2방안'] || '[확인 필요]'
   } else {
-    // 기존 마크다운에서 추출
+    // 기존 마크다운에서 추출 (볼드 제거 후 검색)
+    const plain = md.replace(/\*\*/g, '')
     const tv = (key: string): string => {
-      const m = md.match(new RegExp(key + '[^|]*\\|\\s*([^|\\n]+)', 'i'))
-      return m?.[1]?.replace(/\*\*/g, '').trim() || ''
+      const m = plain.match(new RegExp('\\|\\s*' + key + '\\s*\\|\\s*([^|\\n]+)', 'i'))
+      return m?.[1]?.trim() || ''
     }
+    // 일반현황
     d['OOOOO'] = tv('기업.*명') || '[확인 필요]'
     d['OO기술이 적용된 OO기능의(혜택을 제공하는) OO제품·서비스 등'] = tv('창업아이템명') || tv('아이템명') || '[확인 필요]'
     d['모바일 어플리케이션(0개), 웹사이트(0개)'] = tv('산출물') || '[확인 필요]'
-    d['게토레이'] = tv('명\\s*칭') || '[확인 필요]'
-    d['스포츠음료'] = tv('범\\s*주') || '[확인 필요]'
-    d['대표자, 팀원, 업무파트너(협력기업) 등 역량 활용 계획 등'] = tv('팀\\s*구성') || '[확인 필요]'
-    d['공동대표'] = '[확인 필요]'; d['S/W 개발 총괄'] = '[확인 필요]'
-    d['홍보 및 마케팅'] = '[확인 필요]'
-    d['OO학 박사, OO학과 교수 재직(00년)'] = '[확인 필요]'
-    d['OO학 학사, OO 관련 경력(00년 이상)'] = '[확인 필요]'
-    d['필수 개발 인력 채용'] = '[확인 필요]'; d['OO 전공 경력 직원 00명 채용'] = '[확인 필요]'
-    d['제품 패키지 디자인 용역 진행'] = '[확인 필요]'; d['웹사이트 자체 제작'] = '[확인 필요]'
-    d['시제품 완성'] = '[확인 필요]'; d['협약기간 내 시제품 제작 완료'] = '[확인 필요]'
-    d['DMD소켓 구입(00개×0000원)'] = '[확인 필요]'; d['전원IC류 구입(00개×000원)'] = '[확인 필요]'
-    d['시금형제작 외주용역(OOO제품 .... 플라스틱금형제작)'] = '[확인 필요]'
-    d['국내 OO전시회 참가비(부스 임차 등 포함'] = '[확인 필요]'
-    d['시제품 설계 및 프로토타입 제작'] = '[확인 필요]'; d['외주 용역을 통한 시제품 제작'] = '[확인 필요]'
-    d['OO, OO 프로모션 진행'] = '[확인 필요]'
-    d['○○전자'] = '[확인 필요]'; d['○○기업'] = '[확인 필요]'
-    d['시제품 관련 H/W 제작·개발'] = '[확인 필요]'; d['테스트 장비 지원'] = '[확인 필요]'
-    d['S/W 제작·개발'] = '[확인 필요]'; d['웹사이트 제작 용역'] = '[확인 필요]'
+    d['교수 / 연구원 / 사무직 /'] = tv('직업') || '[확인 필요]'
+
+    // 개요(요약) — 명칭/범주/요약
+    d['게토레이'] = tv('명\\s*칭') || tv('명칭') || '[확인 필요]'
+    d['스포츠음료'] = tv('범\\s*주') || tv('범주') || '[확인 필요]'
+    d['명칭'] = d['게토레이']
+    d['범주'] = d['스포츠음료']
+    d['아이템개요'] = tv('아이템\\s*개요') || '[확인 필요]'
+    d['문제인식요약'] = tv('문제\\s*인식') || '[확인 필요]'
+    d['실현가능성요약'] = tv('실현\\s*가능성?') || '[확인 필요]'
+    d['성장전략요약'] = tv('성장\\s*전략') || '[확인 필요]'
+    d['팀구성요약'] = tv('팀\\s*구성') || '[확인 필요]'
+    d['대표자, 팀원, 업무파트너(협력기업) 등 역량 활용 계획 등'] = d['팀구성요약']
+
+    // 팀구성 표에서 추출
+    const teamRows = extractTableRows(plain, '팀 구성\\(안\\)|팀구성\\(안\\)')
+    if (teamRows.length >= 2) {
+      d['공동대표'] = teamRows[1]?.[1] || '[확인 필요]'
+      d['S/W 개발 총괄'] = teamRows[1]?.[2] || '[확인 필요]'
+      d['OO학 박사, OO학과 교수 재직(00년)'] = teamRows[1]?.[3] || '[확인 필요]'
+      d['홍보 및 마케팅'] = teamRows[2]?.[2] || '[확인 필요]'
+      d['OO학 학사, OO 관련 경력(00년 이상)'] = teamRows[2]?.[3] || '[확인 필요]'
+    } else {
+      d['공동대표'] = '[확인 필요]'; d['S/W 개발 총괄'] = '[확인 필요]'
+      d['홍보 및 마케팅'] = '[확인 필요]'
+      d['OO학 박사, OO학과 교수 재직(00년)'] = '[확인 필요]'
+      d['OO학 학사, OO 관련 경력(00년 이상)'] = '[확인 필요]'
+    }
+
+    // 사업추진 일정 (협약기간 내) 표에서 추출
+    const schedRows = extractTableRows(plain, '사업추진\\s*일정.*협약')
+    if (schedRows.length >= 2) {
+      d['필수 개발 인력 채용'] = schedRows[1]?.[1] || '[확인 필요]'
+      d['OO 전공 경력 직원 00명 채용'] = schedRows[1]?.[3] || '[확인 필요]'
+      d['제품 패키지 디자인 용역 진행'] = schedRows[2]?.[3] || '[확인 필요]'
+      d['웹사이트 자체 제작'] = schedRows[3]?.[3] || '[확인 필요]'
+      d['시제품 완성'] = schedRows[4]?.[1] || '[확인 필요]'
+      d['협약기간 내 시제품 제작 완료'] = schedRows[4]?.[3] || '[확인 필요]'
+    } else {
+      d['필수 개발 인력 채용'] = '[확인 필요]'; d['OO 전공 경력 직원 00명 채용'] = '[확인 필요]'
+      d['제품 패키지 디자인 용역 진행'] = '[확인 필요]'; d['웹사이트 자체 제작'] = '[확인 필요]'
+      d['시제품 완성'] = '[확인 필요]'; d['협약기간 내 시제품 제작 완료'] = '[확인 필요]'
+    }
+
+    // 1단계 사업비 표에서 추출
+    const cost1Rows = extractTableRows(plain, '1단계.*집행계획')
+    if (cost1Rows.length >= 2) {
+      d['DMD소켓 구입(00개×0000원)'] = cost1Rows[1]?.[1] || '[확인 필요]'
+      d['3,000,000'] = cost1Rows[1]?.[2] || '[확인 필요]'
+      d['전원IC류 구입(00개×000원)'] = cost1Rows[2]?.[1] || '[확인 필요]'
+      d['7,000,000'] = cost1Rows[2]?.[2] || '[확인 필요]'
+      d['시금형제작 외주용역(OOO제품 .... 플라스틱금형제작)'] = cost1Rows[3]?.[1] || '[확인 필요]'
+      d['국내 OO전시회 참가비(부스 임차 등 포함'] = cost1Rows[4]?.[1] || '[확인 필요]'
+    } else {
+      d['DMD소켓 구입(00개×0000원)'] = '[확인 필요]'; d['전원IC류 구입(00개×000원)'] = '[확인 필요]'
+      d['시금형제작 외주용역(OOO제품 .... 플라스틱금형제작)'] = '[확인 필요]'
+      d['국내 OO전시회 참가비(부스 임차 등 포함'] = '[확인 필요]'
+    }
+
+    // 전체 사업단계 일정
+    const fullSchedRows = extractTableRows(plain, '사업추진\\s*일정.*전체')
+    if (fullSchedRows.length >= 2) {
+      d['시제품 설계 및 프로토타입 제작'] = fullSchedRows[1]?.[1] || '[확인 필요]'
+      d['외주 용역을 통한 시제품 제작'] = fullSchedRows[2]?.[1] || '[확인 필요]'
+      d['OO, OO 프로모션 진행'] = fullSchedRows[3]?.[1] || '[확인 필요]'
+    } else {
+      d['시제품 설계 및 프로토타입 제작'] = '[확인 필요]'; d['외주 용역을 통한 시제품 제작'] = '[확인 필요]'
+      d['OO, OO 프로모션 진행'] = '[확인 필요]'
+    }
+
+    // 협력기관 표
+    const coopRows = extractTableRows(plain, '협력\\s*기관.*현황|협업\\s*방안')
+    if (coopRows.length >= 2) {
+      d['○○전자'] = coopRows[1]?.[1] || '[확인 필요]'
+      d['시제품 관련 H/W 제작·개발'] = coopRows[1]?.[2] || '[확인 필요]'
+      d['테스트 장비 지원'] = coopRows[1]?.[3] || '[확인 필요]'
+      d['○○기업'] = coopRows[2]?.[1] || '[확인 필요]'
+      d['S/W 제작·개발'] = coopRows[2]?.[2] || '[확인 필요]'
+      d['웹사이트 제작 용역'] = coopRows[2]?.[3] || '[확인 필요]'
+    } else {
+      d['○○전자'] = '[확인 필요]'; d['○○기업'] = '[확인 필요]'
+      d['시제품 관련 H/W 제작·개발'] = '[확인 필요]'; d['테스트 장비 지원'] = '[확인 필요]'
+      d['S/W 제작·개발'] = '[확인 필요]'; d['웹사이트 제작 용역'] = '[확인 필요]'
+    }
   }
 
-  // 공통 교체 (안전 검증됨)
-  d['3,000,000'] = '[확인 필요]'; d['7,000,000'] = '[확인 필요]'
-  d['10,000,000'] = '[확인 필요]'; d['1,000,000'] = '[확인 필요]'
+  // 공통 교체 — 이미 추출된 값이 있으면 유지
+  if (!d['3,000,000']) d['3,000,000'] = '[확인 필요]'
+  if (!d['7,000,000']) d['7,000,000'] = '[확인 필요]'
+  if (!d['10,000,000']) d['10,000,000'] = '[확인 필요]'
+  if (!d['1,000,000']) d['1,000,000'] = '[확인 필요]'
   d['00.00 ~ 00.00'] = '[확인 필요]'
   d['00년 상반기'] = '[확인 필요]'; d['00년 하반기'] = '[확인 필요]'
   d['일반인 / 대학생 등'] = ' '
