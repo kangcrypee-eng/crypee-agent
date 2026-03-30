@@ -16,11 +16,12 @@ const MODEL_COST: Record<string, number> = { 'claude-haiku-4-5': 0.01, 'claude-s
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'dashboard' | 'modules' | 'subscribers'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'modules' | 'subscribers' | 'requests'>('dashboard')
   const [modules, setModules] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [generations, setGenerations] = useState<any[]>([])
   const [subscribers, setSubscribers] = useState<any[]>([])
+  const [requests, setRequests] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [toast, setToast] = useState('')
@@ -31,16 +32,18 @@ export default function AdminPage() {
   }, [isAdmin, loading])
 
   const fetchAll = async () => {
-    const [mods, pays, gens, subs] = await Promise.all([
+    const [mods, pays, gens, subs, reqs] = await Promise.all([
       supabase.from('modules').select('*').order('category').order('uses', { ascending: false }),
       supabase.from('payments').select('*').eq('status', 'paid'),
       supabase.from('generations').select('id, module_id, user_id, created_at'),
       supabase.from('alert_subscriptions').select('*, profiles:user_id(email, business_name, representative)'),
+      supabase.from('module_requests').select('*').order('created_at', { ascending: false }),
     ])
     if (mods.data) setModules(mods.data)
     if (pays.data) setPayments(pays.data)
     if (gens.data) setGenerations(gens.data)
     if (subs.data) setSubscribers(subs.data)
+    if (reqs.data) setRequests(reqs.data)
   }
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
@@ -93,7 +96,7 @@ export default function AdminPage() {
 
       {/* 탭 */}
       <div className="flex gap-1 mb-5">
-        {([['dashboard','대시보드'],['modules','모듈 관리'],['subscribers','구독자']] as const).map(([k,l])=>(
+        {([['dashboard','대시보드'],['modules','모듈 관리'],['subscribers','구독자'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`]] as const).map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all" style={tab===k?{background:'var(--accent-bg)',color:'var(--accent)'}:{color:'var(--text-muted)'}}>{l}</button>
         ))}
       </div>
@@ -261,6 +264,37 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </div>}
+      </>}
+
+      {/* ===== 모듈 문의 탭 ===== */}
+      {tab==='requests'&&<>
+        {requests.length===0?<p className="text-center py-10 text-[13px]" style={{color:'var(--text-muted)'}}>문의가 없습니다</p>:
+        <div className="space-y-2.5">
+          {requests.map(r=>{
+            const sc:Record<string,string>={pending:'#EF8F3B',reviewing:'#5B8DEF',planned:'var(--accent)',completed:'#4CAF50',declined:'var(--text-muted)'}
+            const sl:Record<string,string>={pending:'대기',reviewing:'검토중',planned:'제작예정',completed:'완료',declined:'반려'}
+            return(
+              <div key={r.id} className="rounded-lg p-4 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded" style={{background:sc[r.status]+'20',color:sc[r.status]}}>{sl[r.status]}</span>
+                    <span className="text-[11px] ml-2" style={{color:'var(--text-muted)'}}>{r.category}</span>
+                  </div>
+                  <span className="text-[10px]" style={{color:'var(--text-muted)'}}>{new Date(r.created_at).toLocaleDateString('ko')}</span>
+                </div>
+                <h3 className="text-[13px] font-semibold mb-1">{r.title}</h3>
+                <p className="text-[12px] leading-relaxed mb-2" style={{color:'var(--text-secondary)'}}>{r.description}</p>
+                <div className="flex items-center gap-2 text-[11px]" style={{color:'var(--text-muted)'}}>
+                  <span>{r.email||'(이메일 없음)'}</span>
+                  {r.status==='pending'&&<>
+                    <button onClick={async()=>{await supabase.from('module_requests').update({status:'reviewing'}).eq('id',r.id);fetchAll()}} className="px-2 py-0.5 rounded text-[10px] font-medium" style={{background:'#5B8DEF20',color:'#5B8DEF'}}>검토시작</button>
+                    <button onClick={async()=>{await supabase.from('module_requests').update({status:'planned'}).eq('id',r.id);fetchAll()}} className="px-2 py-0.5 rounded text-[10px] font-medium" style={{background:'var(--accent-bg)',color:'var(--accent)'}}>제작예정</button>
+                  </>}
+                </div>
+              </div>
+            )
+          })}
         </div>}
       </>}
 
