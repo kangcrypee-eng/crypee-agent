@@ -24,6 +24,7 @@ export default function Nav() {
         {/* 데스크톱 메뉴 */}
         <div className="hidden md:flex gap-1">
           <NL href="/market" cur={path}>모듈</NL>
+          <NL href="/request" cur={path}>문의</NL>
           {user && <NL href="/mypage" cur={path}>마이페이지</NL>}
           {isAdmin && <NL href="/admin" cur={path}>어드민</NL>}
         </div>
@@ -59,6 +60,7 @@ export default function Nav() {
         <div className="md:hidden border-t px-4 pb-4 pt-2" style={{background:'var(--bg)',borderColor:'var(--border)'}}>
           <div className="flex flex-col gap-1">
             <MNL href="/market" cur={path} onClick={()=>setMenuOpen(false)}>모듈 마켓</MNL>
+            <MNL href="/request" cur={path} onClick={()=>setMenuOpen(false)}>모듈 문의</MNL>
             {user && <MNL href="/mypage" cur={path} onClick={()=>setMenuOpen(false)}>마이페이지</MNL>}
             {user && <MNL href="/profile" cur={path} onClick={()=>setMenuOpen(false)}>프로필</MNL>}
             {user && <MNL href="/alerts" cur={path} onClick={()=>setMenuOpen(false)}>공고 알림</MNL>}
