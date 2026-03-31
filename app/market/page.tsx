@@ -83,7 +83,57 @@ export default function MarketPage() {
             {/* 미리보기 (바로 표시) */}
             <div className="mb-4">
               <p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-secondary)'}}>미리보기</p>
-              {selected.sample_output?(
+              {selected.id?.startsWith('BLOG')?(
+                <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
+                  <div className="p-5" style={{background:'var(--preview-bg)'}}>
+                    {selected.id==='BLOG01'?(
+                      <div className="text-[12px] leading-[1.8]" style={{color:'var(--preview-text)'}}>
+                        <div className="text-[13px] font-bold mb-3" style={{color:'#333'}}>이렇게 만들어요</div>
+                        <div className="flex flex-col gap-2.5">
+                          {[{n:'1',t:'업종 선택',d:'미용실, 카페, 음식점 등 9개 업종'},
+                            {n:'2',t:'말투 선택',d:'친근한 사장님 / 전문가 / 편한 친구 / 정보 전달형'},
+                            {n:'3',t:'매장 정보',d:'매장명 + 연락처, 주소, 예약 링크 (선택)'},
+                            {n:'4',t:'주제 & 내용',d:'오늘의 주제 + 짧은 경험담 1~3줄'},
+                            {n:'5',t:'사진 업로드',d:'1~5장 사진 → AI가 분석해서 글에 반영'},
+                            {n:'6',t:'완성!',d:'SEO 최적화 글 + 이미지 → 복사해서 티스토리에 붙여넣기'}
+                          ].map(s=>(
+                            <div key={s.n} className="flex items-start gap-2.5">
+                              <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{background:'var(--accent)',color:'#fff'}}>{s.n}</span>
+                              <div><div className="text-[12px] font-semibold" style={{color:'#333'}}>{s.t}</div><div className="text-[11px]" style={{color:'#888'}}>{s.d}</div></div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-4 p-3 rounded-lg" style={{background:'#f0f7ff'}}>
+                          <div className="text-[11px] font-semibold mb-1" style={{color:'#2b7de9'}}>출력 결과물</div>
+                          <div className="text-[11px]" style={{color:'#555'}}>
+                            <strong>제목:</strong> SEO 최적화 제목 (15~30자)<br/>
+                            <strong>본문:</strong> 2,500~4,000자 + 이모지 + 소제목 4~6개<br/>
+                            <strong>사진:</strong> 업로드한 사진이 글 중간에 자동 배치<br/>
+                            <strong>해시태그:</strong> 검색량 기반 10~15개<br/>
+                            <strong>매장 안내:</strong> 연락처 · 주소 · 예약 링크 자동 삽입
+                          </div>
+                        </div>
+                      </div>
+                    ):(
+                      <div className="text-[12px] leading-[1.8]" style={{color:'var(--preview-text)'}}>
+                        <div className="text-[13px] font-bold mb-3" style={{color:'#333'}}>자동 포스팅 프로세스</div>
+                        <div className="flex flex-col gap-2.5">
+                          {[{n:'1',t:'온보딩 (최초 1회)',d:'매장 정보 + 사진 대량 업로드 → AI 자동 분류'},
+                            {n:'2',t:'자동 글 생성',d:'주 3회 (화/목/토) AI가 트렌드 키워드 + 사진으로 글 작성'},
+                            {n:'3',t:'발행',d:'티스토리 자동 발행 또는 이메일로 수신'},
+                            {n:'4',t:'사진 관리',d:'잔여 사진 알림 + 추가 업로드 언제든 가능'}
+                          ].map(s=>(
+                            <div key={s.n} className="flex items-start gap-2.5">
+                              <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{background:'var(--accent)',color:'#fff'}}>{s.n}</span>
+                              <div><div className="text-[12px] font-semibold" style={{color:'#333'}}>{s.t}</div><div className="text-[11px]" style={{color:'#888'}}>{s.d}</div></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ):selected.sample_output?(
                 <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
                   <div className="p-5 max-h-[250px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:selected.mode==='bizplan'?renderBp(selected.sample_output):'<p>'+render(selected.sample_output)+'</p>'}}/>
                 </div>
@@ -108,7 +158,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.id==='BLOG01'?'/blog/write':selected.id==='BLOG02'?'/blog/write':selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.id?.startsWith('BLOG')?'블로그 작성하기':selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>

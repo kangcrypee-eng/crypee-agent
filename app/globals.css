@@ -41,6 +41,9 @@
   --mode-bizplan-bg: rgba(91,141,239,0.08);
   --mode-bizplan-text: #4A7FD6;
   --mode-bizplan-border: rgba(91,141,239,0.2);
+  --mode-blog-bg: rgba(255,111,97,0.08);
+  --mode-blog-text: #FF6F61;
+  --mode-blog-border: rgba(255,111,97,0.2);
 }
 
 [data-theme="dark"] {
@@ -80,6 +83,9 @@
   --mode-bizplan-bg: rgba(91,141,239,0.1);
   --mode-bizplan-text: #5B8DEF;
   --mode-bizplan-border: rgba(91,141,239,0.2);
+  --mode-blog-bg: rgba(255,111,97,0.1);
+  --mode-blog-text: #FF7B6F;
+  --mode-blog-border: rgba(255,111,97,0.2);
 }
 
 body{background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-family:'Plus Jakarta Sans','Noto Sans KR',sans-serif;transition:background .2s,color .2s}
