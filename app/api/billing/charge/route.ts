@@ -4,9 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 export const maxDuration = 60
 
 export async function GET() {
-  const secretKey = process.env.TOSS_SECRET_KEY
+  const secretKey = process.env.TOSS_BILLING_SK || process.env.TOSS_SECRET_KEY
   if (!secretKey || secretKey === 'test_sk_xxx') {
-    return NextResponse.json({ error: 'TOSS_SECRET_KEY not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'TOSS_BILLING_SK not configured' }, { status: 500 })
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appUrl}/alerts?error=missing_params`)
   }
 
-  const secretKey = process.env.TOSS_SECRET_KEY
+  const secretKey = process.env.TOSS_BILLING_SK || process.env.TOSS_SECRET_KEY
   if (!secretKey || secretKey === 'test_sk_xxx') {
     return NextResponse.redirect(`${appUrl}/alerts?error=payment_not_configured`)
   }
