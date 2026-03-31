@@ -89,14 +89,29 @@ function SetupContent() {
     setSaving(false)
   }
 
-  // 토스 빌링키 등록
+  // 토스 빌링키 등록 (빌링 계약 전: 시뮬레이션 모드)
   const startBillingAuth = async (subscriptionId: string) => {
     if (!user) return
+    const billingReady = false // TODO: 빌링 계약 완료 후 true로 변경
+    if (!billingReady) {
+      // 시뮬레이션: 토스 호출 없이 구독 활성화
+      const nextBilling = new Date()
+      nextBilling.setMonth(nextBilling.getMonth() + 1)
+      await supabase.from('alert_subscriptions').update({
+        is_active: true,
+        billing_status: 'active',
+        next_billing_at: nextBilling.toISOString(),
+        card_company: '테스트',
+        card_number: '**** **** **** 0000',
+      }).eq('id', subscriptionId)
+      setMsg('구독이 활성화되었습니다! (테스트 모드)')
+      setTimeout(() => router.push('/alerts'), 1500)
+      return
+    }
     const clientKey = process.env.NEXT_PUBLIC_TOSS_BILLING_CK || process.env.NEXT_PUBLIC_TOSS_CK || ''
     if (!clientKey) {
-      // 토스 미설정 → 무료로 활성화
       await supabase.from('alert_subscriptions').update({ is_active: true, billing_status: 'active' }).eq('id', subscriptionId)
-      setMsg('알림이 설정되었습니다! (결제 시스템 준비 중 — 무료)')
+      setMsg('알림이 설정되었습니다!')
       setTimeout(() => router.push('/alerts'), 1500)
       return
     }
