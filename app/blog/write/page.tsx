@@ -3,6 +3,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { BUSINESS_TYPES, TONE_OPTIONS, BUSINESS_EXAMPLES } from '@/lib/blog-prompts'
+import { PHOTO_CATEGORIES } from '@/lib/blog-pro-categories'
 import Link from 'next/link'
 
 export default function BlogWritePage() {
@@ -16,6 +17,7 @@ export default function BlogWritePage() {
   const [shopPhone, setShopPhone] = useState('')
   const [shopAddress, setShopAddress] = useState('')
   const [shopLink, setShopLink] = useState('')
+  const [category, setCategory] = useState('')
   const [topic, setTopic] = useState('')
   const [briefContent, setBriefContent] = useState('')
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([])
@@ -84,6 +86,7 @@ export default function BlogWritePage() {
           shopPhone,
           shopAddress,
           shopLink,
+          category,
           topic,
           briefContent,
           photos: uploadResults.map((r, i) => ({
@@ -220,6 +223,29 @@ export default function BlogWritePage() {
           />
         </div>
 
+        {/* 카테고리 (선택) */}
+        {businessType && (
+          <div>
+            <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
+              카테고리 <span className="font-normal" style={{ color: 'var(--text-muted)' }}>(선택 안 하면 자동)</span>
+            </label>
+            <div className="flex gap-1.5 flex-wrap">
+              <button onClick={() => setCategory('')}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-medium border"
+                style={{ borderColor: !category ? 'var(--accent)' : 'var(--border-strong)', background: !category ? 'var(--accent-bg)' : 'var(--surface)', color: !category ? 'var(--accent)' : 'var(--text-muted)' }}>
+                자동 선택
+              </button>
+              {(PHOTO_CATEGORIES[businessType] || PHOTO_CATEGORIES.other).map(c => (
+                <button key={c.value} onClick={() => setCategory(c.value)}
+                  className="px-3 py-1.5 rounded-lg text-[12px] font-medium border"
+                  style={{ borderColor: category === c.value ? 'var(--accent)' : 'var(--border-strong)', background: category === c.value ? 'var(--accent-bg)' : 'var(--surface)', color: category === c.value ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  {c.icon} {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 짧은 내용 */}
         <div>
           <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>짧은 내용</label>
@@ -324,7 +350,7 @@ export default function BlogWritePage() {
           매일 자동으로 블로그 글을 올려드릴까요?
         </div>
         <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
-          BlogPilot Pro — 주 3회 자동 생성 + 티스토리 자동 발행 (준비 중)
+          BlogPilot Pro — 주 3회 자동 생성 + 이메일 발송 (준비 중)
         </p>
         <span className="inline-block px-4 py-1.5 rounded-full text-[12px] font-medium" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
           Coming Soon

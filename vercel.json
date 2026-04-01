@@ -3,7 +3,11 @@
     "app/api/generate/route.ts": { "maxDuration": 60 },
     "app/api/payment/success/route.ts": { "maxDuration": 60 },
     "app/api/alerts/check/route.ts": { "maxDuration": 60 },
-    "app/api/billing/charge/route.ts": { "maxDuration": 60 }
+    "app/api/billing/charge/route.ts": { "maxDuration": 60 },
+    "app/api/blog/generate-scheduled/route.ts": { "maxDuration": 300 },
+    "app/api/blog/deliver-posts/route.ts": { "maxDuration": 120 },
+    "app/api/blog/pro/classify-photos/route.ts": { "maxDuration": 120 },
+    "app/api/blog/pro/preview-posts/route.ts": { "maxDuration": 120 }
   },
   "crons": [
     { "path": "/api/alerts/check", "schedule": "0 0 * * *" },

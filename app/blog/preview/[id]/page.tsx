@@ -245,7 +245,7 @@ export default function BlogPreviewPage() {
           매일 자동으로 올려드릴까요?
         </div>
         <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
-          BlogPilot Pro — 주 3회 자동 생성 + 티스토리 자동 발행 (준비 중)
+          BlogPilot Pro — 주 3회 자동 생성 + 이메일 발송 (준비 중)
         </p>
         <span className="inline-block px-4 py-1.5 rounded-full text-[12px] font-medium" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
           Coming Soon
