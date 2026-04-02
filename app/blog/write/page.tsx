@@ -347,14 +347,14 @@ export default function BlogWritePage() {
       {/* 모듈 B 업셀 배너 */}
       <div className="mt-12 rounded-xl p-5 border text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <div className="text-[13px] font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>
-          매일 자동으로 블로그 글을 올려드릴까요?
+          블로그 글을 한번에 만들어볼까요?
         </div>
         <p className="text-[12px] mb-3" style={{ color: 'var(--text-muted)' }}>
-          BlogPilot Pro — 주 3회 자동 생성 + 이메일 발송 (준비 중)
+          최대 30편을 한번에 생성 → 이메일로 발송
         </p>
-        <span className="inline-block px-4 py-1.5 rounded-full text-[12px] font-medium" style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}>
-          Coming Soon
-        </span>
+        <a href="/blog/pro" className="inline-block px-4 py-1.5 rounded-full text-[12px] font-semibold" style={{ background: 'var(--accent)', color: '#fff' }}>
+          일괄 생성하기
+        </a>
       </div>
     </div>
   )

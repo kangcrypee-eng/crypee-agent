@@ -116,12 +116,13 @@ export default function MarketPage() {
                       </div>
                     ):(
                       <div className="text-[12px] leading-[1.8]" style={{color:'var(--preview-text)'}}>
-                        <div className="text-[13px] font-bold mb-3" style={{color:'#333'}}>자동 포스팅 프로세스</div>
+                        <div className="text-[13px] font-bold mb-3" style={{color:'#333'}}>일괄 생성 프로세스</div>
                         <div className="flex flex-col gap-2.5">
-                          {[{n:'1',t:'온보딩 (최초 1회)',d:'매장 정보 + 사진 대량 업로드 → AI 자동 분류'},
-                            {n:'2',t:'자동 글 생성',d:'주 3회 (화/목/토) AI가 트렌드 키워드 + 사진으로 글 작성'},
-                            {n:'3',t:'발행',d:'티스토리 자동 발행 또는 이메일로 수신'},
-                            {n:'4',t:'사진 관리',d:'잔여 사진 알림 + 추가 업로드 언제든 가능'}
+                          {[{n:'1',t:'업종 + 매장 정보',d:'업종 선택 + 매장명, 연락처, 주소'},
+                            {n:'2',t:'편수 선택',d:'12편 ₩9,900 / 24편 ₩19,900 / 36편 ₩29,900'},
+                            {n:'3',t:'카테고리별 사진 업로드',d:'원하는 카테고리에 사진 업로드 + 커스텀 카테고리 추가 가능'},
+                            {n:'4',t:'무료 미리보기',d:'AI가 전부 생성 → 미리보기로 확인 + 수정'},
+                            {n:'5',t:'결제 → 복사/이메일',d:'만족하면 결제 → 글+이미지 복사 · 이메일 발송'}
                           ].map(s=>(
                             <div key={s.n} className="flex items-start gap-2.5">
                               <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{background:'var(--accent)',color:'#fff'}}>{s.n}</span>
@@ -158,7 +159,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.id==='BLOG01'?'/blog/write':selected.id==='BLOG02'?'/blog/write':selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.id?.startsWith('BLOG')?'블로그 작성하기':selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.id==='BLOG01'?'/blog/write':selected.id==='BLOG02'?'/blog/pro':selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.id==='BLOG01'?'단편 작성하기':selected.id==='BLOG02'?'일괄 생성하기':selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, businessType, shopName, shopPhone, shopAddress, shopLink, tone, email, postCount, photosPerPost, uploadedByCategory } = await request.json()
 
-    if (!userId || !businessType || !shopName || !email || !postCount) {
+    if (!userId || !businessType || !shopName || !postCount) {
       return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
     }
 
@@ -121,51 +121,6 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         console.error(`Bulk generate error ${i + 1}:`, e)
       }
-    }
-
-    // 이메일 발송 (1통에 전부)
-    const resendKey = process.env.RESEND_API_KEY
-    if (resendKey && generatedPosts.length > 0) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
-
-      const postsHtml = generatedPosts.map((p, i) => `
-        <div style="margin-bottom:40px;padding-bottom:40px;border-bottom:2px solid #eee">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-            <span style="background:#00B894;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">${i + 1}편</span>
-            <a href="${appUrl}/blog/preview/${p.id}" style="font-size:12px;color:#00B894;text-decoration:none">복사 페이지 →</a>
-          </div>
-          <h2 style="font-size:20px;font-weight:700;color:#333;margin-bottom:16px">${p.title}</h2>
-          ${p.bodyHtml}
-          <div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">
-            ${(p.hashtags || []).map(t => `<span style="display:inline-block;margin:2px 4px;padding:4px 10px;background:#f0f7ff;color:#2b7de9;border-radius:20px;font-size:12px">#${t}</span>`).join('')}
-          </div>
-        </div>
-      `).join('')
-
-      const emailBody = `
-        <div style="max-width:680px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans KR',sans-serif">
-          <div style="background:#00B894;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">
-            <h1 style="margin:0;font-size:18px">BlogPilot — ${shopName} 블로그 ${generatedPosts.length}편</h1>
-            <p style="margin:6px 0 0;font-size:13px;opacity:0.8">각 글의 "복사 페이지"에서 글+이미지를 한번에 복사할 수 있어요</p>
-          </div>
-          <div style="padding:24px;border:1px solid #eee;border-top:none;border-radius:0 0 12px 12px">
-            ${postsHtml}
-            <div style="padding:16px;background:#f8f8f8;border-radius:8px;font-size:13px;color:#666;text-align:center">
-              각 글의 <strong>[복사 페이지]</strong> 링크를 클릭하면<br>글+이미지를 한번에 복사할 수 있어요!
-            </div>
-          </div>
-        </div>`
-
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
-        body: JSON.stringify({
-          from: 'BlogPilot <noreply@crypee.com>',
-          to: [email],
-          subject: `[BlogPilot] ${shopName} 블로그 ${generatedPosts.length}편이 준비됐어요!`,
-          html: emailBody,
-        }),
-      })
     }
 
     return NextResponse.json({
