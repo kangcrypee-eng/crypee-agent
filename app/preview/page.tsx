@@ -19,11 +19,16 @@ function Pv() {
       if(mod){
         setM(mod);setFmt(mod.default_format||'pdf')
         if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
-        // bizplan 모듈: 결제 전 잠금 (일부만 보여주고 결제 후 전체 열람)
+        // bizplan 모듈: 결제 전 잠금
         if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
-          supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
-            setIsLocked(!purchased&&(!pays||pays.length===0))
-          })
+          if(purchased){
+            // URL에 purchased=true → 결제 완료
+            setIsLocked(false)
+          }else{
+            supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
+              setIsLocked(!pays||pays.length===0)
+            })
+          }
         }
       }
       // 결과물 로드: gid > DB 최신 > sessionStorage
