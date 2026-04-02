@@ -369,7 +369,7 @@ function ScansTab() {
         <button onClick={handleScan} disabled={scanning}
           className="px-4 py-2 rounded-lg text-[12px] font-semibold"
           style={{ background: 'var(--accent)', color: '#fff' }}>
-          {scanning ? '스캔 중...' : '🔍 창업 공고 스캔'}
+          {scanning ? '스캔 중...' : '🔍 전체 공고 스캔'}
         </button>
       </div>
 
@@ -378,7 +378,7 @@ function ScansTab() {
       {loading ? <div className="text-center py-10"><div className="spinner mx-auto" /></div> : scans.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>
           <p className="text-[14px] mb-2">스캔된 공고가 없습니다</p>
-          <p className="text-[12px]">"창업 공고 스캔" 버튼을 눌러 기업마당에서 창업 공고를 가져오세요</p>
+          <p className="text-[12px]">"전체 공고 스캔" 버튼을 눌러 기업마당에서 공고를 가져오세요</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
