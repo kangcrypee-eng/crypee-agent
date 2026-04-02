@@ -16,7 +16,7 @@ const MODEL_COST: Record<string, number> = { 'claude-haiku-4-5': 0.01, 'claude-s
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'dashboard' | 'modules' | 'subscribers' | 'requests'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'modules' | 'subscribers' | 'requests' | 'scans'>('dashboard')
   const [modules, setModules] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [generations, setGenerations] = useState<any[]>([])
@@ -96,7 +96,7 @@ export default function AdminPage() {
 
       {/* 탭 */}
       <div className="flex gap-1 mb-5">
-        {([['dashboard','대시보드'],['modules','모듈 관리'],['subscribers','구독자'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`]] as const).map(([k,l])=>(
+        {([['dashboard','대시보드'],['modules','모듈 관리'],['subscribers','구독자'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`],['scans','공고 스캔']] as const).map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all" style={tab===k?{background:'var(--accent-bg)',color:'var(--accent)'}:{color:'var(--text-muted)'}}>{l}</button>
         ))}
       </div>
@@ -298,6 +298,9 @@ export default function AdminPage() {
         </div>}
       </>}
 
+      {/* 공고 스캔 탭 */}
+      {tab==='scans'&&<ScansTab />}
+
       {/* 삭제 모달 */}
       {deleteTarget&&<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={()=>setDeleteTarget(null)}>
         <div className="rounded-xl p-6 max-w-[380px] w-full mx-4 animate-in border" style={{background:'var(--surface)',borderColor:'var(--border-strong)'}} onClick={e=>e.stopPropagation()}>
@@ -313,5 +316,118 @@ export default function AdminPage() {
 
       {toast&&<div className="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-lg text-[13px] font-medium border z-50 animate-in" style={{background:'var(--surface)',color:'var(--text)',borderColor:'var(--border-strong)'}}>{toast}</div>}
     </div>
+  )
+}
+
+// 공고 스캔 탭 컴포넌트
+function ScansTab() {
+  const [scans, setScans] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState('')
+  const router = useRouter()
+
+  const fetchScans = async () => {
+    const { data } = await supabase.from('bizplan_scans').select('*').order('created_at', { ascending: false }).limit(50)
+    if (data) setScans(data)
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchScans() }, [])
+
+  const handleScan = async () => {
+    setScanning(true); setScanResult('')
+    try {
+      const res = await fetch('/api/admin/bizplan-scan')
+      const data = await res.json()
+      setScanResult(`스캔 완료: 전체 ${data.total}건, 신규 ${data.new}건`)
+      fetchScans()
+    } catch (e: any) { setScanResult('스캔 실패: ' + e.message) }
+    setScanning(false)
+  }
+
+  const updateStatus = async (id: string, status: string) => {
+    await supabase.from('bizplan_scans').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    fetchScans()
+  }
+
+  const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+    new: { bg: 'var(--accent-bg)', color: 'var(--accent)', label: '신규' },
+    reviewing: { bg: 'rgba(91,141,239,0.1)', color: '#5B8DEF', label: '검토 중' },
+    module_created: { bg: 'rgba(0,184,148,0.1)', color: '#00B894', label: '모듈 생성 완료' },
+    skipped: { bg: 'var(--surface)', color: 'var(--text-muted)', label: '건너뜀' },
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+            신규 {scans.filter(s => s.status === 'new').length}건 · 전체 {scans.length}건
+          </div>
+        </div>
+        <button onClick={handleScan} disabled={scanning}
+          className="px-4 py-2 rounded-lg text-[12px] font-semibold"
+          style={{ background: 'var(--accent)', color: '#fff' }}>
+          {scanning ? '스캔 중...' : '🔍 창업 공고 스캔'}
+        </button>
+      </div>
+
+      {scanResult && <div className="mb-4 rounded-lg px-4 py-2 text-[12px]" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>{scanResult}</div>}
+
+      {loading ? <div className="text-center py-10"><div className="spinner mx-auto" /></div> : scans.length === 0 ? (
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-[14px] mb-2">스캔된 공고가 없습니다</p>
+          <p className="text-[12px]">"창업 공고 스캔" 버튼을 눌러 기업마당에서 창업 공고를 가져오세요</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {scans.map(s => {
+            const st = statusColors[s.status] || statusColors.new
+            return (
+              <div key={s.id} className="rounded-xl p-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{s.organization}</span>
+                    </div>
+                    <div className="text-[13px] font-semibold mb-1" style={{ color: 'var(--text)' }}>{s.title}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      접수: {s.deadline || '확인 필요'}
+                      {s.module_id && <span> · 모듈: {s.module_id}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    {s.url && <a href={s.url} target="_blank" className="px-2.5 py-1 rounded text-[10px] font-medium border" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>공고 보기</a>}
+                    {s.status === 'new' && (
+                      <>
+                        <button onClick={() => { updateStatus(s.id, 'reviewing'); router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}&org=${encodeURIComponent(s.organization || '')}`) }}
+                          className="px-2.5 py-1 rounded text-[10px] font-semibold"
+                          style={{ background: 'var(--accent)', color: '#fff' }}>
+                          모듈 생성
+                        </button>
+                        <button onClick={() => updateStatus(s.id, 'skipped')}
+                          className="px-2.5 py-1 rounded text-[10px] font-medium"
+                          style={{ color: 'var(--text-muted)' }}>
+                          건너뛰기
+                        </button>
+                      </>
+                    )}
+                    {s.status === 'reviewing' && (
+                      <button onClick={() => router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}`)}
+                        className="px-2.5 py-1 rounded text-[10px] font-semibold"
+                        style={{ background: '#5B8DEF', color: '#fff' }}>
+                        이어서 생성
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 }

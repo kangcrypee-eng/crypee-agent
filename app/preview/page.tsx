@@ -26,7 +26,17 @@ function Pv() {
           })
         }
       }
-      const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
+      // gid가 있으면 DB에서 로드, 없으면 sessionStorage
+      const gidParam=params.get('gid')
+      if(gidParam){
+        supabase.from('generations').select('output_text').eq('id',gidParam).single().then(({data:gen})=>{
+          if(gen?.output_text){setResult(gen.output_text);sessionStorage.setItem('lastResult',gen.output_text)}
+          else{const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다.)')}
+          setLd(false)
+        })
+      }else{
+        const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
+      }
     })
     // 최근 generation 정보 가져오기 (재생성 카운트용)
     if(user){
