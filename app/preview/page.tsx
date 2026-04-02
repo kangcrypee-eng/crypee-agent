@@ -26,17 +26,25 @@ function Pv() {
           })
         }
       }
-      // gid가 있으면 DB에서 로드, 없으면 sessionStorage
+      // 결과물 로드: gid > DB 최신 > sessionStorage
       const gidParam=params.get('gid')
-      if(gidParam){
-        supabase.from('generations').select('output_text').eq('id',gidParam).single().then(({data:gen})=>{
-          if(gen?.output_text){setResult(gen.output_text);sessionStorage.setItem('lastResult',gen.output_text)}
-          else{const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다.)')}
-          setLd(false)
-        })
-      }else{
-        const s=sessionStorage.getItem('lastResult');setResult(s||'(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
+      const loadResult=async()=>{
+        // 1. gid로 직접 로드
+        if(gidParam){
+          const{data:gen}=await supabase.from('generations').select('output_text').eq('id',gidParam).single()
+          if(gen?.output_text){setResult(gen.output_text);sessionStorage.setItem('lastResult',gen.output_text);setLd(false);return}
+        }
+        // 2. sessionStorage
+        const s=sessionStorage.getItem('lastResult')
+        if(s){setResult(s);setLd(false);return}
+        // 3. DB에서 최신 generation 찾기
+        if(user){
+          const{data:latest}=await supabase.from('generations').select('output_text').eq('user_id',user.id).eq('module_id',id).order('created_at',{ascending:false}).limit(1).single()
+          if(latest?.output_text){setResult(latest.output_text);sessionStorage.setItem('lastResult',latest.output_text);setLd(false);return}
+        }
+        setResult('(결과물을 불러올 수 없습니다. 모듈을 다시 실행해주세요.)');setLd(false)
       }
+      loadResult()
     })
     // 최근 generation 정보 가져오기 (재생성 카운트용)
     if(user){
