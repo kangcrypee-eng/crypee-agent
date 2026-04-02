@@ -58,7 +58,7 @@ export async function GET() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
             body: JSON.stringify({
-              from: 'BlogPilot <noreply@crypee.com>',
+              from: 'BlogPilot <noreply@crypee.biz>',
               to: [sub.delivery_email],
               subject: `[BlogPilot] ${post.generated_title}`,
               html: emailBody,

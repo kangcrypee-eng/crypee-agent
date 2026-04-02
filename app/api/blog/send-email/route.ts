@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
         body: JSON.stringify({
-          from: 'BlogPilot <noreply@crypee.com>',
+          from: 'BlogPilot <noreply@crypee.biz>',
           to: [email],
           subject: `[BlogPilot] ${title}`,
           html: emailBody,
