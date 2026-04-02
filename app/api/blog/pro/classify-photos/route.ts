@@ -40,9 +40,20 @@ async function classifyPhoto(imageUrl: string, businessType: string): Promise<{ 
 
 export async function POST(request: NextRequest) {
   try {
-    const { photoIds, businessType } = await request.json()
+    const { photoIds, businessType, manualCategory } = await request.json()
     if (!photoIds?.length || !businessType) {
       return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
+    }
+
+    // 수동 카테고리 지정 (사용자가 이미 분류한 경우)
+    if (manualCategory) {
+      for (const id of photoIds) {
+        await supabaseAdmin.from('blogpilot_photos').update({
+          category: manualCategory,
+          category_confirmed: true,
+        }).eq('id', id)
+      }
+      return NextResponse.json({ classified: photoIds.length, summary: { [manualCategory]: photoIds.length } })
     }
 
     // 사진 URL 조회

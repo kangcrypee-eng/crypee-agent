@@ -4,3 +4,4 @@ node_modules/
 
 # 모듈 양식 템플릿 (고객 데이터)
 templates/
+.vercel
