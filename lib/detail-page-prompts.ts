@@ -161,15 +161,52 @@ export function generateDetailPageHtml(
       html += `  <h2 style="font-size:20px;font-weight:700;color:${design.text};margin-bottom:16px;line-height:1.4;">${section.title}</h2>\n`
     }
 
-    // 본문
+    // 본문 (마크다운 → HTML 완전 변환)
     if (section.content) {
-      const content = section.content
-        .replace(/\*\*(.+?)\*\*/g, `<strong>$1</strong>`)
-        .replace(/^- (.+)$/gm, `<p style="font-size:15px;color:${design.text};line-height:1.8;padding:8px 0;border-bottom:1px solid ${design.bg === '#1A1A1A' ? '#333' : '#F0F0F0'};">✓ $1</p>`)
-        .replace(/\n\n/g, '</p><p style="font-size:15px;line-height:1.8;margin-bottom:12px;">')
-        .replace(/\n/g, '<br>')
+      const divider = design.bg === '#1A1A1A' ? '#333' : '#F0F0F0'
+      let content = section.content
+        // 이미지 플레이스홀더
+        .replace(/\[IMAGE:(\d+)\]/g, (_, num) => {
+          const idx = parseInt(num) - 1
+          const photo = photos[idx]
+          return photo ? `<div style="text-align:center;margin:24px 0"><img src="${photo.cdnUrl}" alt="${productName}" style="width:100%;border-radius:8px;" loading="lazy"></div>` : ''
+        })
+        // 헤딩
+        .replace(/^### (.+)$/gm, `<h3 style="font-size:17px;font-weight:600;color:${design.text};margin:20px 0 8px;line-height:1.4;">$1</h3>`)
+        .replace(/^## (.+)$/gm, `<h2 style="font-size:20px;font-weight:700;color:${design.text};margin:24px 0 12px;line-height:1.4;">$1</h2>`)
+        .replace(/^# (.+)$/gm, `<h1 style="font-size:24px;font-weight:800;color:${design.accent};margin:20px 0 8px;line-height:1.3;">$1</h1>`)
+        // 볼드/이탤릭
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // 인용
+        .replace(/^> (.+)$/gm, `<div style="padding:12px 16px;margin:8px 0;border-left:3px solid ${design.accent};background:${design.accent}08;font-size:14px;color:${design.text};opacity:0.85;line-height:1.7;">$1</div>`)
+        // 구분선
+        .replace(/^---$/gm, `<hr style="border:none;border-top:1px solid ${divider};margin:24px 0;">`)
+        // 테이블
+        .replace(/(\|.+\|\n)+/g, (block) => {
+          const rows = block.trim().split('\n').filter(r => r.includes('|') && !r.match(/^\|[\s:\-|]+\|$/))
+          if (rows.length === 0) return block
+          let table = `<table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">`
+          rows.forEach((row, ri) => {
+            const cells = row.split('|').filter(c => c.trim() !== '')
+            const tag = ri === 0 ? 'th' : 'td'
+            const bg = ri === 0 ? `background:${design.accent}15;font-weight:600;` : ''
+            table += '<tr>' + cells.map(c => `<${tag} style="padding:10px 12px;border-bottom:1px solid ${divider};text-align:left;${bg}">${c.trim()}</${tag}>`).join('') + '</tr>'
+          })
+          return table + '</table>'
+        })
+        // 리스트 (- 또는 ✅ ✓)
+        .replace(/^[-✓✅] (.+)$/gm, `<div style="padding:10px 0;border-bottom:1px solid ${divider};font-size:15px;line-height:1.7;">✓ $1</div>`)
+        // 이모지 리스트 (⭐, 😞, 📞 등으로 시작)
+        .replace(/^([😞😋🍯📦🏆⭐💡📞🕐⚡🎁🛒⚠️🎉]) (.+)$/gm, `<div style="padding:8px 0;font-size:15px;line-height:1.7;">$1 $2</div>`)
+        // 빈줄 → 문단
+        .split('\n\n').map(p => {
+          p = p.trim()
+          if (!p || p.startsWith('<')) return p
+          return `<p style="font-size:15px;line-height:1.8;margin:0 0 14px;color:${design.text};opacity:0.85;">${p.replace(/\n/g, '<br>')}</p>`
+        }).join('\n')
 
-      html += `  <div style="font-size:15px;color:${design.text};opacity:0.85;line-height:1.8;">${content}</div>\n`
+      html += `  <div style="font-size:15px;color:${design.text};line-height:1.8;">${content}</div>\n`
     }
 
     html += `</div>\n`

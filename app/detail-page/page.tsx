@@ -63,6 +63,7 @@ export default function DetailPageCreate() {
       return
     }
     setError('')
+    setStep(99)
     setAnalyzing(true)
     setProgress(10)
 
@@ -106,6 +107,7 @@ export default function DetailPageCreate() {
       router.push(`/blog/preview/${result.postId}`)
     } catch (e: any) {
       setError(e.message || '오류가 발생했습니다')
+      setStep(4)
     }
     setAnalyzing(false)
     setGenerating(false)
@@ -136,7 +138,7 @@ export default function DetailPageCreate() {
       {error && <div className="mb-4 rounded-lg px-4 py-3 text-[13px]" style={{ background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)' }}>{error}</div>}
 
       {/* 분석/생성 중 */}
-      {(analyzing || generating) && (
+      {(analyzing || generating || step === 99) && (
         <div className="text-center py-16">
           <div className="spinner mx-auto mb-4" />
           <h2 className="text-[18px] font-bold mb-2" style={{ color: 'var(--text)' }}>
