@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { getCopywritingPrompt, generateDetailPageHtml, DEFAULT_DESIGNS } from '@/lib/detail-page-prompts'
+import { getCopywritingPrompt, generateDetailPageHtml, DEFAULT_DESIGNS, PRODUCT_CATEGORIES } from '@/lib/detail-page-prompts'
 
 export const maxDuration = 120
 
@@ -56,11 +56,25 @@ export async function POST(request: NextRequest) {
 
     let copyData: any
     try {
-      // JSON 블록 추출
-      const jsonMatch = rawContent.match(/\{[\s\S]*\}/)
-      copyData = JSON.parse(jsonMatch ? jsonMatch[0] : rawContent)
-    } catch {
-      copyData = { headline: productName, subheadline: '', sections: [] }
+      // JSON 블록 추출 (```json ... ``` 또는 순수 JSON)
+      let jsonStr = rawContent
+      const codeBlock = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (codeBlock) jsonStr = codeBlock[1]
+      else {
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/)
+        if (jsonMatch) jsonStr = jsonMatch[0]
+      }
+      copyData = JSON.parse(jsonStr.trim())
+    } catch (parseErr) {
+      console.error('Claude JSON parse error:', parseErr, 'raw:', rawContent.slice(0, 500))
+      // Fallback: sections를 수동으로 구성
+      copyData = {
+        headline: productName,
+        subheadline: `${PRODUCT_CATEGORIES.find(c => c.value === category)?.label || ''} 상세페이지`,
+        sections: [
+          { type: 'hero', title: productName, content: rawContent.slice(0, 2000), image_refs: [1], background: 'white' },
+        ]
+      }
     }
 
     // HTML 생성

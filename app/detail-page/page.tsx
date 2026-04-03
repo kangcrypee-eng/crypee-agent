@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { PRODUCT_CATEGORIES, PHOTO_TAGS, DEFAULT_DESIGNS } from '@/lib/detail-page-prompts'
+import { PRODUCT_CATEGORIES, PHOTO_TAGS, DEFAULT_DESIGNS } from '@/lib/detail-page-constants'
 
 export default function DetailPageCreate() {
   const router = useRouter()
@@ -27,8 +27,6 @@ export default function DetailPageCreate() {
   const [error, setError] = useState('')
 
   const [analysisResult, setAnalysisResult] = useState<any>(null)
-
-  if (authLoading) return <div className="flex justify-center py-20"><div className="spinner" /></div>
 
   const addRefPhotos = (files: FileList | null) => {
     if (!files) return
@@ -103,8 +101,8 @@ export default function DetailPageCreate() {
       const result = await genRes.json()
       setProgress(100)
 
-      // 미리보기로 이동
-      router.push(`/blog/preview/${result.postId}`)
+      // 미리보기로 이동 (결제 전에도 전체 보기)
+      router.push(`/blog/preview/${result.postId}?purchased=true`)
     } catch (e: any) {
       setError(e.message || '오류가 발생했습니다')
       setStep(4)

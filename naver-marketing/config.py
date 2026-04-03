@@ -1,5 +1,14 @@
 """설정값 관리"""
 
+import os
+import platform
+
+# OS에 따른 Chrome 프로필 경로 자동 설정
+if platform.system() == 'Windows':
+    CHROME_PROFILE_DIR = os.path.join(os.environ['USERPROFILE'], '.chrome-profiles', 'account1')
+else:
+    CHROME_PROFILE_DIR = os.path.expanduser('~/.chrome-profiles/account1')
+
 CONFIG = {
     # 메시지 간 대기 시간 (초)
     'delay_min': 30,          # 최소 대기
@@ -9,7 +18,7 @@ CONFIG = {
     # 계정 (1개)
     'account': {
         'id': 'account1',
-        'profile_dir': '~/.chrome-profiles/account1',
+        'profile_dir': CHROME_PROFILE_DIR,
     },
 
     # 발송 시간대 (영업시간)
