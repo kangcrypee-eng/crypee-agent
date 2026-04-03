@@ -159,7 +159,7 @@ export default function MarketPage() {
             </div>
 
             <div className="flex gap-2">
-              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.id==='BLOG01'?'/blog/write':selected.id==='BLOG02'?'/blog/pro':selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.id==='BLOG01'?'단편 작성하기':selected.id==='BLOG02'?'일괄 생성하기':selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
+              <button onClick={()=>{setSelected(null);setShowSample(false);router.push(selected.id==='BLOG01'?'/blog/write':selected.id==='BLOG02'?'/blog/pro':selected.id==='M200'?'/detail-page':selected.mode==='alert'?'/alerts/setup?module='+selected.id:'/execute?id='+selected.id)}} className="flex-1 py-3 font-semibold text-[13px] rounded-lg hover:opacity-90 transition-all" style={{background:'var(--accent)',color:'var(--bg)'}}>{selected.id==='BLOG01'?'단편 작성하기':selected.id==='BLOG02'?'일괄 생성하기':selected.id==='M200'?'상세페이지 만들기':selected.mode==='alert'?'알림 설정하기':selected.mode==='bizplan'?'생성하기':(selected.price_krw||0)===0?'무료 실행':`실행하기 · ₩${(selected.price_krw||0).toLocaleString()}`}</button>
               <button onClick={()=>{setSelected(null);setShowSample(false)}} className="px-4 py-3 text-[13px] rounded-lg border hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>닫기</button>
             </div>
           </div>
