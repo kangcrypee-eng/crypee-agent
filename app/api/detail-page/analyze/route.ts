@@ -43,40 +43,50 @@ export async function POST(request: NextRequest) {
 
     const results: any = { references: [], products: [] }
 
-    // 1. 레퍼런스 이미지 분석
-    for (const file of referenceFiles) {
+    // 1. 레퍼런스 이미지 업로드 + 분석 (최대 3장만, 1번 호출로 합침)
+    const refUrls: string[] = []
+    for (const file of referenceFiles.slice(0, 3)) {
       const buffer = Buffer.from(await file.arrayBuffer())
-      const processed = await sharp(buffer).resize({ width: 1200, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer()
+      const processed = await sharp(buffer).resize({ width: 800, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer()
       const filename = `${userId}/detail-ref/${crypto.randomUUID()}.jpg`
       await supabaseAdmin.storage.from('blog-photos').upload(filename, processed, { contentType: 'image/jpeg' })
       const { data: urlData } = supabaseAdmin.storage.from('blog-photos').getPublicUrl(filename)
-
-      const analysis = await callVision(urlData.publicUrl, getReferenceAnalysisPrompt())
-      results.references.push({ cdnUrl: urlData.publicUrl, analysis })
+      refUrls.push(urlData.publicUrl)
+    }
+    // 레퍼런스 1번만 Vision 호출 (첫 번째 이미지로 대표 분석)
+    if (refUrls.length > 0) {
+      const analysis = await callVision(refUrls[0], getReferenceAnalysisPrompt())
+      results.references.push({ cdnUrl: refUrls[0], analysis })
     }
 
-    // 2. 상품 사진 업로드 + 분석
+    // 2. 상품 사진 업로드 (먼저 전부 업로드, 그 다음 Vision 병렬 호출)
     const tags = productTags ? JSON.parse(productTags) : []
+    const uploadedProducts: { cdnUrl: string; tag: string; idx: number }[] = []
+
     for (let i = 0; i < productFiles.length; i++) {
       const file = productFiles[i]
       const buffer = Buffer.from(await file.arrayBuffer())
-      let quality = 85
-      let processed = await sharp(buffer).resize({ width: 860, withoutEnlargement: true }).jpeg({ quality }).toBuffer()
-      while (processed.length > 300 * 1024 && quality > 30) {
-        quality -= 10
-        processed = await sharp(buffer).resize({ width: 860, withoutEnlargement: true }).jpeg({ quality }).toBuffer()
-      }
-
+      const processed = await sharp(buffer).resize({ width: 860, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer()
       const filename = `${userId}/detail-product/${crypto.randomUUID()}.jpg`
       await supabaseAdmin.storage.from('blog-photos').upload(filename, processed, { contentType: 'image/jpeg' })
       const { data: urlData } = supabaseAdmin.storage.from('blog-photos').getPublicUrl(filename)
+      uploadedProducts.push({ cdnUrl: urlData.publicUrl, tag: tags[i] || 'detail', idx: i })
+    }
 
-      const analysis = await callVision(urlData.publicUrl, getPhotoAnalysisPrompt())
-      results.products.push({
-        cdnUrl: urlData.publicUrl,
-        tag: tags[i] || analysis.suggested_tag || 'detail',
-        analysis,
-      })
+    // Vision 분석 병렬 (최대 5개씩)
+    for (let i = 0; i < uploadedProducts.length; i += 5) {
+      const batch = uploadedProducts.slice(i, i + 5)
+      const batchResults = await Promise.all(
+        batch.map(async (p) => {
+          try {
+            const analysis = await callVision(p.cdnUrl, getPhotoAnalysisPrompt())
+            return { cdnUrl: p.cdnUrl, tag: p.tag !== 'detail' ? p.tag : (analysis.suggested_tag || 'detail'), analysis }
+          } catch {
+            return { cdnUrl: p.cdnUrl, tag: p.tag, analysis: { description: '', suggested_section: 'feature' } }
+          }
+        })
+      )
+      results.products.push(...batchResults)
     }
 
     // 레퍼런스 분석 결과 병합 (여러 장의 공통 패턴 추출)
