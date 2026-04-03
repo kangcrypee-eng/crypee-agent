@@ -18,6 +18,9 @@ export default function DetailPageCreate() {
   const [target, setTarget] = useState('')
   const [differentiator, setDifferentiator] = useState('')
   const [extraFields, setExtraFields] = useState<Record<string, string>>({})
+  const [fixedTexts, setFixedTexts] = useState<{ label: string; content: string }[]>([])
+  const [newFixedLabel, setNewFixedLabel] = useState('')
+  const [newFixedContent, setNewFixedContent] = useState('')
 
   const [refPhotos, setRefPhotos] = useState<File[]>([])
   const [productPhotos, setProductPhotos] = useState<{ file: File; tag: string; preview: string }[]>([])
@@ -99,6 +102,7 @@ export default function DetailPageCreate() {
           referenceDesign: analysis.referenceDesign,
           products: analysis.products,
           extraFields,
+          fixedTexts,
         }),
       })
       if (!genRes.ok) throw new Error((await genRes.json()).error || '생성 실패')
@@ -213,6 +217,43 @@ export default function DetailPageCreate() {
               ))}
             </div>
           )}
+
+          {/* 고정 텍스트 (원문 그대로 삽입) */}
+          <div className="border-t pt-4 mt-2" style={{ borderColor: 'var(--border)' }}>
+            <h3 className="text-[14px] font-bold mb-1" style={{ color: 'var(--text)' }}>
+              그대로 넣을 텍스트
+            </h3>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+              AI가 수정하지 않고 상세페이지 하단에 원문 그대로 삽입합니다 (배송 정책, 회사 소개, 법적 고지 등)
+            </p>
+
+            {fixedTexts.map((ft, i) => (
+              <div key={i} className="rounded-lg p-3 mb-2 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[12px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{ft.label}</span>
+                  <button onClick={() => setFixedTexts(prev => prev.filter((_, j) => j !== i))}
+                    className="text-[11px]" style={{ color: 'var(--error-text)' }}>삭제</button>
+                </div>
+                <p className="text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{ft.content.slice(0, 100)}{ft.content.length > 100 ? '...' : ''}</p>
+              </div>
+            ))}
+
+            <div className="flex flex-col gap-2">
+              <input className="inp" placeholder="항목명 (예: 배송 안내, 교환/반품 정책, 회사 소개)"
+                value={newFixedLabel} onChange={e => setNewFixedLabel(e.target.value)} />
+              <textarea className="inp" rows={3} placeholder="여기에 원문을 복사-붙여넣기 하세요" style={{ resize: 'none' }}
+                value={newFixedContent} onChange={e => setNewFixedContent(e.target.value)} />
+              <button onClick={() => {
+                if (!newFixedLabel.trim() || !newFixedContent.trim()) return
+                setFixedTexts(prev => [...prev, { label: newFixedLabel.trim(), content: newFixedContent.trim() }])
+                setNewFixedLabel(''); setNewFixedContent('')
+              }} disabled={!newFixedLabel.trim() || !newFixedContent.trim()}
+                className="px-4 py-2 rounded-lg text-[12px] font-semibold self-start"
+                style={{ background: 'var(--accent)', color: '#fff', opacity: (!newFixedLabel.trim() || !newFixedContent.trim()) ? 0.5 : 1 }}>
+                + 추가
+              </button>
+            </div>
+          </div>
 
           <button onClick={() => { if (!productName) { setError('상품명을 입력해주세요'); return }; if (!features.some(f => f.trim())) { setError('특장점을 최소 1개 입력해주세요'); return }; setError(''); setStep(3) }}
             className="w-full py-3.5 rounded-xl font-semibold text-[15px]" style={{ background: 'var(--accent)', color: '#fff' }}>

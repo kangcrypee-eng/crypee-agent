@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, category, productName, price, features, target, differentiator, referenceDesign, products, extraFields } = await request.json()
+    const { userId, category, productName, price, features, target, differentiator, referenceDesign, products, extraFields, fixedTexts } = await request.json()
 
     if (!userId || !productName || !category) {
       return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
@@ -84,7 +84,19 @@ export async function POST(request: NextRequest) {
       : DEFAULT_DESIGNS[category] || DEFAULT_DESIGNS.other
 
     const photos = (products || []).map((p: any) => ({ cdnUrl: p.cdnUrl, tag: p.tag }))
-    const html = generateDetailPageHtml(copyData, photos, design, productName)
+    let html = generateDetailPageHtml(copyData, photos, design, productName)
+
+    // 고정 텍스트 원문 삽입 (AI 수정 없이 하단에 추가)
+    if (fixedTexts?.length) {
+      const fixedHtml = (fixedTexts as { label: string; content: string }[]).map(ft =>
+        `<div style="padding:32px 24px;background:${design.bg === '#1A1A1A' ? '#111' : '#F8F8F8'};border-top:1px solid ${design.bg === '#1A1A1A' ? '#333' : '#E8E8E8'};">
+          <h3 style="font-size:14px;font-weight:700;color:${design.text};margin-bottom:12px;">${ft.label}</h3>
+          <div style="font-size:13px;color:${design.text};opacity:0.7;line-height:1.8;white-space:pre-wrap;">${ft.content}</div>
+        </div>`
+      ).join('\n')
+      // </div> 닫기 태그 앞에 삽입
+      html = html.replace(/<\/div>$/, fixedHtml + '</div>')
+    }
 
     // DB 저장
     const { data: post } = await supabaseAdmin.from('blog_posts').insert({
