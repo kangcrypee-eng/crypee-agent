@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { PRODUCT_CATEGORIES, PHOTO_TAGS, DEFAULT_DESIGNS } from '@/lib/detail-page-constants'
+import { PRODUCT_CATEGORIES, PHOTO_TAGS, DEFAULT_DESIGNS, CATEGORY_FIELDS } from '@/lib/detail-page-constants'
 
 export default function DetailPageCreate() {
   const router = useRouter()
@@ -17,6 +17,7 @@ export default function DetailPageCreate() {
   const [features, setFeatures] = useState(['', '', ''])
   const [target, setTarget] = useState('')
   const [differentiator, setDifferentiator] = useState('')
+  const [extraFields, setExtraFields] = useState<Record<string, string>>({})
 
   const [refPhotos, setRefPhotos] = useState<File[]>([])
   const [productPhotos, setProductPhotos] = useState<{ file: File; tag: string; preview: string }[]>([])
@@ -55,7 +56,8 @@ export default function DetailPageCreate() {
   }
 
   const handleGenerate = async () => {
-    if (!user) { router.push('/login'); return }
+    console.log('handleGenerate called', { user: !!user, productName, category, photos: productPhotos.length })
+    if (!user) { alert('로그인이 필요합니다'); router.push('/login'); return }
     if (!productName || !category || productPhotos.length === 0) {
       setError('상품명, 카테고리, 상품 사진(최소 1장)을 입력해주세요')
       return
@@ -64,6 +66,7 @@ export default function DetailPageCreate() {
     setStep(99)
     setAnalyzing(true)
     setProgress(10)
+    console.log('Starting analyze...')
 
     try {
       // 1. 사진 분석
@@ -95,15 +98,18 @@ export default function DetailPageCreate() {
           differentiator,
           referenceDesign: analysis.referenceDesign,
           products: analysis.products,
+          extraFields,
         }),
       })
       if (!genRes.ok) throw new Error((await genRes.json()).error || '생성 실패')
       const result = await genRes.json()
       setProgress(100)
 
-      // 미리보기로 이동 (결제 전에도 전체 보기)
-      router.push(`/blog/preview/${result.postId}?purchased=true`)
+      // 상세페이지 전용 미리보기로 이동
+      router.push(`/detail-page/preview?id=${result.postId}`)
     } catch (e: any) {
+      console.error('Generate error:', e)
+      alert('오류: ' + (e.message || '알 수 없는 오류'))
       setError(e.message || '오류가 발생했습니다')
       setStep(4)
     }
@@ -168,7 +174,7 @@ export default function DetailPageCreate() {
         </div>
       )}
 
-      {/* Step 2: 상품 정보 */}
+      {/* Step 2: 상품 정보 + 카테고리별 필수 정보 */}
       {step === 2 && !analyzing && !generating && (
         <div className="flex flex-col gap-4">
           <h2 className="text-[16px] font-bold" style={{ color: 'var(--text)' }}>상품 정보</h2>
@@ -185,6 +191,28 @@ export default function DetailPageCreate() {
 
           <input className="inp" placeholder="타겟 고객 (선택)" value={target} onChange={e => setTarget(e.target.value)} />
           <input className="inp" placeholder="경쟁 대비 차별점 (선택)" value={differentiator} onChange={e => setDifferentiator(e.target.value)} />
+
+          {/* 카테고리별 상세 정보 */}
+          {category && (CATEGORY_FIELDS[category] || CATEGORY_FIELDS.other).length > 0 && (
+            <div className="border-t pt-4 mt-2" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="text-[14px] font-bold mb-3" style={{ color: 'var(--text)' }}>
+                상세페이지 필수 정보
+                <span className="text-[11px] font-normal ml-2" style={{ color: 'var(--text-muted)' }}>입력하면 상세페이지에 자동 반영됩니다</span>
+              </h3>
+              {(CATEGORY_FIELDS[category] || CATEGORY_FIELDS.other).map(field => (
+                <div key={field.key} className="mb-3">
+                  <label className="block text-[12px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>{field.label}</label>
+                  {field.type === 'textarea' ? (
+                    <textarea className="inp" rows={2} placeholder={field.placeholder} style={{ resize: 'none' }}
+                      value={extraFields[field.key] || ''} onChange={e => setExtraFields(prev => ({ ...prev, [field.key]: e.target.value }))} />
+                  ) : (
+                    <input className="inp" placeholder={field.placeholder}
+                      value={extraFields[field.key] || ''} onChange={e => setExtraFields(prev => ({ ...prev, [field.key]: e.target.value }))} />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           <button onClick={() => { if (!productName) { setError('상품명을 입력해주세요'); return }; if (!features.some(f => f.trim())) { setError('특장점을 최소 1개 입력해주세요'); return }; setError(''); setStep(3) }}
             className="w-full py-3.5 rounded-xl font-semibold text-[15px]" style={{ background: 'var(--accent)', color: '#fff' }}>

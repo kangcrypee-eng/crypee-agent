@@ -71,7 +71,8 @@ export function getCopywritingPrompt(
   category: string,
   designAnalysis: any,
   photoAnalyses: { tag: string; description: string; suggested_section: string }[],
-  productInfo: { name: string; price: string; features: string[]; target?: string; differentiator?: string }
+  productInfo: { name: string; price: string; features: string[]; target?: string; differentiator?: string },
+  extraFields?: Record<string, string>
 ): string {
   const catLabel = PRODUCT_CATEGORIES.find(c => c.value === category)?.label || '기타'
   const design = designAnalysis || DEFAULT_DESIGNS[category] || DEFAULT_DESIGNS.other
@@ -94,6 +95,11 @@ export function getCopywritingPrompt(
 - 핵심 특장점: ${productInfo.features.join(' / ')}
 ${productInfo.target ? `- 타겟 고객: ${productInfo.target}` : ''}
 ${productInfo.differentiator ? `- 차별점: ${productInfo.differentiator}` : ''}
+
+## 상세페이지 필수 정보 (반드시 상세페이지에 포함할 것)
+${extraFields && Object.keys(extraFields).length > 0
+  ? Object.entries(extraFields).filter(([,v]) => v.trim()).map(([k,v]) => `- ${k}: ${v}`).join('\n')
+  : '(입력된 필수 정보 없음 — 일반적인 내용으로 작성)'}
 
 ## 디자인 분석 결과
 - 톤: ${design.design_tone || design.tone || 'minimal'}

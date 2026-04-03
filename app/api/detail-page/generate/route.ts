@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, category, productName, price, features, target, differentiator, referenceDesign, products } = await request.json()
+    const { userId, category, productName, price, features, target, differentiator, referenceDesign, products, extraFields } = await request.json()
 
     if (!userId || !productName || !category) {
       return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
       category,
       referenceDesign,
       photoAnalyses,
-      { name: productName, price, features: features || [], target, differentiator }
+      { name: productName, price, features: features || [], target, differentiator },
+      extraFields
     )
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
