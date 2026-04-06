@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
           generated_body_html: bodyHtml,
           generated_hashtags: parsed.hashtags || [],
           status: 'done',
-          paid: true,
+          paid: false,
         }).select('id').single()
 
         generatedTitles.push(title)

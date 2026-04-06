@@ -1,5 +1,14 @@
 'use client'
 import { useEffect, useState, useRef, Suspense } from 'react'
+
+const loadTossV1Script = (): Promise<void> => new Promise((resolve, reject) => {
+  if ((window as any).TossPayments) { resolve(); return }
+  const s = document.createElement('script')
+  s.src = 'https://js.tosspayments.com/v1/payment'
+  s.onload = () => resolve()
+  s.onerror = () => reject(new Error('결제 스크립트 로드 실패'))
+  document.head.appendChild(s)
+})
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -69,18 +78,15 @@ function ResultsPage() {
     }
     setPaying(true)
     try {
-      const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk')
-      const tossPayments = await loadTossPayments(clientKey)
-      const payment = tossPayments.payment({ customerKey: user!.id })
+      await loadTossV1Script()
+      const tossPayments = (window as any).TossPayments(clientKey)
       const orderId = `blogbulk-${user!.id.substring(0, 8)}-${Date.now()}`
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      // 편수에 따라 가격 결정
       const count = posts.length
       const price = count <= 12 ? 9900 : count <= 24 ? 19900 : 29900
 
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: price },
+      await tossPayments.requestPayment('카드', {
+        amount: price,
         orderId,
         orderName: `BlogPilot ${count}편`,
         successUrl: `${appUrl}/api/blog/pro/payment-bulk?postIds=${postIds.join(',')}&returnUrl=${encodeURIComponent(`/blog/pro/results?ids=${postIds.join(',')}&purchased=true`)}`,
@@ -209,7 +215,7 @@ function ResultsPage() {
             {expandedId === post.id && (
               <div>
                 {editingId === post.id ? (
-                  /* 수정 모드 */
+                  /* 수정 모드 — 결제 후에만 접근 가능 */
                   <div className="px-5 py-4 border-t" style={{ borderColor: '#eee' }}>
                     <input className="inp mb-3 text-[16px] font-bold" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
                     <textarea className="inp" rows={15} value={editBody} onChange={e => setEditBody(e.target.value)} style={{ resize: 'vertical', fontSize: '14px', lineHeight: '1.8' }} />
@@ -226,8 +232,8 @@ function ResultsPage() {
                       </button>
                     </div>
                   </div>
-                ) : (
-                  /* 미리보기 모드 */
+                ) : paid ? (
+                  /* 결제 완료 — 전체 내용 */
                   <>
                     <div ref={el => { contentRefs.current[post.id] = el }} className="px-5 py-5 border-t" style={{ borderColor: '#eee' }}>
                       <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#333', marginBottom: '20px', lineHeight: 1.4 }}>
@@ -242,29 +248,37 @@ function ResultsPage() {
                         </div>
                       )}
                     </div>
-
-                    {/* 액션 버튼 */}
                     <div className="px-5 py-3 border-t flex gap-2" style={{ borderColor: '#eee' }}>
-                      {paid ? (
-                        <>
-                          <button onClick={() => handleCopy(post)}
-                            className="px-4 py-2 rounded-lg text-[12px] font-semibold"
-                            style={{ background: 'var(--accent)', color: '#fff' }}>
-                            {copied === post.id ? '복사 완료!' : '글+이미지 복사'}
-                          </button>
-                          <button onClick={() => startEdit(post)}
-                            className="px-4 py-2 rounded-lg text-[12px] font-medium border"
-                            style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
-                            수정
-                          </button>
-                        </>
-                      ) : (
-                        <div className="text-[12px] py-2" style={{ color: 'var(--text-muted)' }}>
-                          결제 후 복사 · 수정 · 이메일 발송이 가능합니다
-                        </div>
-                      )}
+                      <button onClick={() => handleCopy(post)}
+                        className="px-4 py-2 rounded-lg text-[12px] font-semibold"
+                        style={{ background: 'var(--accent)', color: '#fff' }}>
+                        {copied === post.id ? '복사 완료!' : '글+이미지 복사'}
+                      </button>
+                      <button onClick={() => startEdit(post)}
+                        className="px-4 py-2 rounded-lg text-[12px] font-medium border"
+                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+                        수정
+                      </button>
                     </div>
                   </>
+                ) : (
+                  /* 결제 전 — 상단 일부 노출, 나머지 블러 */
+                  <div className="border-t" style={{ borderColor: '#eee' }}>
+                    {/* 상단 ~120px: 선명하게 */}
+                    <div className="px-5 pt-5 pointer-events-none select-none overflow-hidden" style={{ maxHeight: '120px' }}>
+                      <div dangerouslySetInnerHTML={{ __html: post.generated_body_html }} style={{ color: '#333', lineHeight: 1.8, fontSize: '14px' }} />
+                    </div>
+                    {/* 하단: 블러 + 페이드 */}
+                    <div className="relative overflow-hidden pointer-events-none select-none" style={{ maxHeight: '100px' }}>
+                      <div className="px-5 pb-5" style={{ filter: 'blur(4px)', opacity: 0.6 }}>
+                        <div dangerouslySetInnerHTML={{ __html: post.generated_body_html }} style={{ color: '#333', lineHeight: 1.8, fontSize: '14px' }} />
+                      </div>
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 0%, rgba(255,255,255,0.98) 80%)' }} />
+                    </div>
+                    <div className="px-5 pb-4 text-center">
+                      <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>결제 후 전체 내용을 확인할 수 있습니다</p>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

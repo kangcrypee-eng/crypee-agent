@@ -7,7 +7,8 @@
     "app/api/blog/generate-scheduled/route.ts": { "maxDuration": 300 },
     "app/api/blog/deliver-posts/route.ts": { "maxDuration": 120 },
     "app/api/blog/pro/classify-photos/route.ts": { "maxDuration": 120 },
-    "app/api/blog/pro/preview-posts/route.ts": { "maxDuration": 120 }
+    "app/api/blog/pro/preview-posts/route.ts": { "maxDuration": 120 },
+    "app/api/blog/pro/bulk-generate/route.ts": { "maxDuration": 300 }
   },
   "crons": [
     { "path": "/api/alerts/check", "schedule": "0 0 * * *" },

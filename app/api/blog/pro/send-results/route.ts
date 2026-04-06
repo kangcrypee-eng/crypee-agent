@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
         <h2 style="font-size:20px;font-weight:700;color:#333;margin-bottom:16px">${p.generated_title}</h2>
         ${p.generated_body_html}
         ${p.generated_hashtags?.length ? `<div style="margin-top:16px;padding-top:12px;border-top:1px solid #eee">${p.generated_hashtags.map((t: string) => `<span style="display:inline-block;margin:2px 4px;padding:4px 10px;background:#f0f7ff;color:#2b7de9;border-radius:20px;font-size:12px">#${t}</span>`).join('')}</div>` : ''}
-        <div style="margin-top:12px"><a href="${appUrl}/blog/preview/${p.id}" style="color:#00B894;font-size:13px;text-decoration:none;font-weight:600">복사 페이지에서 글+이미지 복사하기 →</a></div>
       </div>
     `).join('')
 
