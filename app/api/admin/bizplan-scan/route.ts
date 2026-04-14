@@ -45,20 +45,22 @@ export async function GET() {
       }
     }
 
-    // 오늘 이후 접수중인 것만 필터
+    const parseKoreanDate = (str: string): Date | null => {
+      const normalized = str.trim().replace(/\./g, '-')
+      const d = new Date(normalized)
+      return isNaN(d.getTime()) ? null : d
+    }
+
+    // 마감일이 오늘 이상인 것만 (마감일 없으면 제외)
+    const todayStart = new Date(todayStr)
     const active = allItems.filter((item: any) => {
       if (!item.reqstBeginEndDe) return false
-      const parts = item.reqstBeginEndDe.split(' ~ ')
-      // 접수 시작일이 오늘 이후이거나, 마감일이 오늘 이후
-      if (parts[0]) {
-        const begin = new Date(parts[0].trim())
-        if (begin >= new Date(todayStr)) return true
-      }
-      if (parts[1]) {
-        const end = new Date(parts[1].trim())
-        return end >= now
-      }
-      return false
+      const parts = item.reqstBeginEndDe.split('~')
+      const endStr = (parts[1] || parts[0])?.trim()
+      if (!endStr) return false
+      const end = parseKoreanDate(endStr)
+      if (!end) return false
+      return end >= todayStart
     })
 
     // 현재 API에서 유효한 pblancId 목록

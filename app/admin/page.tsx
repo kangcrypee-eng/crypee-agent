@@ -362,10 +362,12 @@ function ScansTab() {
   const [loading, setLoading] = useState(true)
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all'|'new'|'reviewing'|'module_created'|'skipped'>('all')
+  const [sortBy, setSortBy] = useState<'deadline'|'created'>('deadline')
   const router = useRouter()
 
   const fetchScans = async () => {
-    const { data } = await supabase.from('bizplan_scans').select('*').order('created_at', { ascending: false }).limit(50)
+    const { data } = await supabase.from('bizplan_scans').select('*').order('created_at', { ascending: false }).limit(200)
     if (data) setScans(data)
     setLoading(false)
   }
@@ -388,6 +390,14 @@ function ScansTab() {
     fetchScans()
   }
 
+  const parseDeadlineEnd = (deadline: string): Date | null => {
+    if (!deadline) return null
+    const parts = deadline.split('~')
+    const endStr = (parts[1] || parts[0])?.trim().replace(/\./g, '-')
+    const d = new Date(endStr)
+    return isNaN(d.getTime()) ? null : d
+  }
+
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
     new: { bg: 'var(--accent-bg)', color: 'var(--accent)', label: '신규' },
     reviewing: { bg: 'rgba(91,141,239,0.1)', color: '#5B8DEF', label: '검토 중' },
@@ -395,32 +405,57 @@ function ScansTab() {
     skipped: { bg: 'var(--surface)', color: 'var(--text-muted)', label: '건너뜀' },
   }
 
+  const filtered = scans
+    .filter(s => statusFilter === 'all' || s.status === statusFilter)
+    .sort((a, b) => {
+      if (sortBy === 'deadline') {
+        const da = parseDeadlineEnd(a.deadline)?.getTime() ?? 0
+        const db = parseDeadlineEnd(b.deadline)?.getTime() ?? 0
+        return da - db // 마감 임박 순
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-            신규 {scans.filter(s => s.status === 'new').length}건 · 전체 {scans.length}건
-          </div>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div className="flex gap-1">
+          {([['all','전체'],['new','신규'],['reviewing','검토 중'],['module_created','생성 완료'],['skipped','건너뜀']] as const).map(([k,l]) => (
+            <button key={k} onClick={() => setStatusFilter(k)}
+              className="px-3 py-1 rounded-lg text-[11.5px] font-medium"
+              style={statusFilter === k ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+              {l} {k === 'all' ? scans.length : scans.filter(s => s.status === k).length}
+            </button>
+          ))}
         </div>
-        <button onClick={handleScan} disabled={scanning}
-          className="px-4 py-2 rounded-lg text-[12px] font-semibold"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
-          {scanning ? '스캔 중...' : '🔍 전체 공고 스캔'}
-        </button>
+        <div className="flex items-center gap-2">
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+            className="text-[11.5px] px-2 py-1 rounded-lg border"
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+            <option value="deadline">마감 임박순</option>
+            <option value="created">등록 최신순</option>
+          </select>
+          <button onClick={handleScan} disabled={scanning}
+            className="px-4 py-2 rounded-lg text-[12px] font-semibold"
+            style={{ background: 'var(--accent)', color: '#fff' }}>
+            {scanning ? '스캔 중...' : '🔍 전체 공고 스캔'}
+          </button>
+        </div>
       </div>
 
       {scanResult && <div className="mb-4 rounded-lg px-4 py-2 text-[12px]" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>{scanResult}</div>}
 
-      {loading ? <div className="text-center py-10"><div className="spinner mx-auto" /></div> : scans.length === 0 ? (
+      {loading ? <div className="text-center py-10"><div className="spinner mx-auto" /></div> : filtered.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>
-          <p className="text-[14px] mb-2">스캔된 공고가 없습니다</p>
-          <p className="text-[12px]">"전체 공고 스캔" 버튼을 눌러 기업마당에서 공고를 가져오세요</p>
+          <p className="text-[14px] mb-2">{scans.length === 0 ? '스캔된 공고가 없습니다' : '해당 상태의 공고가 없습니다'}</p>
+          {scans.length === 0 && <p className="text-[12px]">"전체 공고 스캔" 버튼을 눌러 기업마당에서 공고를 가져오세요</p>}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {scans.map(s => {
+          {filtered.map(s => {
             const st = statusColors[s.status] || statusColors.new
+            const deadlineEnd = parseDeadlineEnd(s.deadline)
+            const daysLeft = deadlineEnd ? Math.ceil((deadlineEnd.getTime() - Date.now()) / 86400000) : null
             return (
               <div key={s.id} className="rounded-xl p-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
                 <div className="flex items-start justify-between gap-3">
@@ -428,6 +463,12 @@ function ScansTab() {
                     <div className="flex items-center gap-2 mb-1">
                       <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: st.bg, color: st.color }}>{st.label}</span>
                       <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{s.organization}</span>
+                      {daysLeft !== null && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: daysLeft <= 7 ? 'rgba(239,68,68,0.1)' : 'var(--surface-hover)', color: daysLeft <= 7 ? '#ef4444' : 'var(--text-muted)' }}>
+                          D-{daysLeft}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[13px] font-semibold mb-1" style={{ color: 'var(--text)' }}>{s.title}</div>
                     <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
