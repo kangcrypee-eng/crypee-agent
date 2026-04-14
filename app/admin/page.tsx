@@ -377,62 +377,7 @@ function ScansTab() {
   const handleScan = async () => {
     setScanning(true); setScanResult('')
     try {
-      const bizinfoKey = process.env.NEXT_PUBLIC_BIZINFO_API_KEY
-      if (!bizinfoKey) { setScanResult('NEXT_PUBLIC_BIZINFO_API_KEY 미설정'); setScanning(false); return }
-
-      const ALL_FIELDS: Record<string, string> = {
-        '기술': '01', '인력': '02', '수출': '03', '내수': '04',
-        '창업': '05', '경영': '06', '기타': '07', '융복합': '08',
-      }
-
-      // 브라우저에서 직접 bizinfo API 호출
-      const seen = new Set<string>()
-      const allItems: any[] = []
-      for (const [fieldName, fieldCode] of Object.entries(ALL_FIELDS)) {
-        const params = new URLSearchParams({ crtfcKey: bizinfoKey, dataType: 'json', searchCnt: '50', pageUnit: '50', pageIndex: '1', searchLclasId: fieldCode })
-        try {
-          const res = await fetch(`https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?${params}`)
-          const json = await res.json()
-          for (const item of json?.jsonArray || []) {
-            if (seen.has(item.pblancId)) continue
-            seen.add(item.pblancId)
-            allItems.push({ ...item, _field: fieldName })
-          }
-        } catch { /* 분야별 실패 무시 */ }
-      }
-
-      // 마감일 파싱
-      const parseEnd = (str: string): Date | null => {
-        if (!str) return null
-        const parts = str.split('~')
-        const s = (parts[1] || parts[0])?.trim()
-        if (!s) return null
-        // yyyymmdd 형식
-        if (/^\d{8}$/.test(s)) return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`)
-        return new Date(s.replace(/\./g, '-'))
-      }
-
-      const today = new Date(); today.setHours(0,0,0,0)
-      const activeItems = allItems
-        .filter(item => {
-          const end = parseEnd(item.reqstBeginEndDe)
-          return end && end >= today
-        })
-        .map(item => ({
-          pblancId: item.pblancId,
-          title: item.pblancNm,
-          organization: item.jrsdInsttNm,
-          field: item._field,
-          deadline: item.reqstBeginEndDe,
-          url: item.pblancUrl,
-        }))
-
-      // 서버에 DB 처리 위임
-      const res = await fetch('/api/admin/bizplan-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activeItems }),
-      })
+      const res = await fetch('/api/admin/bizplan-scan')
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScanResult(`스캔 완료: 전체 ${data.total}건, 신규 ${data.new}건${data.deleted > 0 ? `, 만료 삭제 ${data.deleted}건` : ''}`)
