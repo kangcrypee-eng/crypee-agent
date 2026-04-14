@@ -1,12 +1,15 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
-export default function AdminBizplanPage() {
+function BizplanPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isAdmin, loading } = useAuth()
+
+  const scanId = searchParams.get('scanId')
 
   const [announcement, setAnnouncement] = useState<File | null>(null)
   const [template, setTemplate] = useState<File | null>(null)
@@ -20,8 +23,58 @@ export default function AdminBizplanPage() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
+  const [scanInfo, setScanInfo] = useState<{ announcement_file_url?: string; template_file_url?: string; template_file_name?: string } | null>(null)
+  const [fetchingFiles, setFetchingFiles] = useState(false)
+
   useEffect(() => { if (!loading && !isAdmin) router.push('/') }, [isAdmin, loading])
+
+  useEffect(() => {
+    if (!scanId) return
+    setFetchingFiles(true)
+    ;(async () => {
+      const { data } = await supabase
+        .from('bizplan_scans')
+        .select('announcement_file_url, template_file_url, template_file_name')
+        .eq('id', scanId)
+        .single()
+
+      if (!data) { setFetchingFiles(false); return }
+      setScanInfo(data)
+
+      const filePromises: Promise<void>[] = []
+
+      if (data.announcement_file_url) {
+        filePromises.push(
+          fetch(`/api/admin/proxy-file?url=${encodeURIComponent(data.announcement_file_url)}`)
+            .then(r => r.ok ? r.blob() : Promise.reject(new Error(`${r.status}`)))
+            .then(blob => {
+              setAnnouncement(new File([blob], '공고문.pdf', { type: 'application/pdf' }))
+            })
+            .catch(() => { /* 자동 다운로드 실패 시 수동 업로드 */ })
+        )
+      }
+
+      const templateExt = (data.template_file_name || '').split('.').pop()?.toLowerCase()
+      if (data.template_file_url && templateExt === 'pdf') {
+        filePromises.push(
+          fetch(`/api/admin/proxy-file?url=${encodeURIComponent(data.template_file_url)}`)
+            .then(r => r.ok ? r.blob() : Promise.reject(new Error(`${r.status}`)))
+            .then(blob => {
+              setTemplate(new File([blob], data.template_file_name || '양식.pdf', { type: 'application/pdf' }))
+            })
+            .catch(() => { /* 자동 다운로드 실패 시 수동 업로드 */ })
+        )
+      }
+
+      await Promise.allSettled(filePromises)
+      setFetchingFiles(false)
+    })()
+  }, [scanId])
+
   if (loading || !isAdmin) return null
+
+  const templateExt = (scanInfo?.template_file_name || '').split('.').pop()?.toLowerCase()
+  const isHwpTemplate = templateExt === 'hwp' || templateExt === 'hwpx'
 
   const handleAnalyze = async () => {
     if (!announcement || !template) { setError('공고문과 양식을 모두 업로드해주세요'); return }
@@ -36,7 +89,10 @@ export default function AdminBizplanPage() {
       setAnalysis(data)
       if (data.phase1?.program_name) setModuleName(data.phase1.program_name + ' 사업계획서')
       if (data.phase1?.organization) setModuleDesc(`${data.phase1.organization} ${data.phase1.program_name || ''} 맞춤 사업계획서`)
-    } catch (e: any) { setError(e.message || '오류 발생') }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '오류 발생'
+      setError(msg)
+    }
     setAnalyzing(false)
   }
 
@@ -84,11 +140,20 @@ export default function AdminBizplanPage() {
         { key: 'current_status', label: '현재 진행 상태 (선택)', type: 'text', placeholder: '예: MVP 완성, 매출 발생', required: false },
         { key: 'emphasis', label: '강조할 점 (선택)', type: 'text', placeholder: '예: 특허 보유, 해외 진출', required: false },
       ],
-      credit_cost: 0, price_krw: modulePrice, status: 'active',
+      credit_cost: 0, price_krw: modulePrice, status: 'inactive',
     })
 
     if (err) { setMsg('실패: ' + err.message); setSaving(false); return }
-    setMsg(`✅ 모듈 ${moduleId} 생성 완료! 마켓에 등록되었습니다.`)
+
+    if (scanId) {
+      await supabase.from('bizplan_scans').update({
+        status: 'module_created',
+        module_id: moduleId,
+        updated_at: new Date().toISOString(),
+      }).eq('id', scanId)
+    }
+
+    setMsg(`✅ 모듈 ${moduleId} 생성 완료 (비활성 상태 — 어드민에서 활성화)`)
     setTimeout(() => router.push('/admin'), 2000)
     setSaving(false)
   }
@@ -99,10 +164,41 @@ export default function AdminBizplanPage() {
       <h1 className="text-[18px] font-bold mb-1">📋 맞춤 사업계획서 모듈 생성</h1>
       <p className="text-[12px] mb-6" style={{ color: 'var(--text-muted)' }}>공고문 + 양식 업로드 → AI 분석 → 모듈 자동 등록</p>
 
+      {fetchingFiles && (
+        <div className="p-4 rounded-xl border mb-4 text-[12px] text-center" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+          공고 파일 자동 다운로드 중...
+        </div>
+      )}
+
       {!analysis ? (
         <div className="rounded-xl p-5 mb-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <FileUp label="공고문 PDF *" desc="심사기준, 배점, 자격요건" file={announcement} setFile={setAnnouncement} />
-          <FileUp label="사업계획서 양식 *" desc="제출 양식 파일" file={template} setFile={setTemplate} />
+
+          {isHwpTemplate && !template ? (
+            <div className="mb-4">
+              <p className="text-[12px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>사업계획서 양식 *</p>
+              <div className="p-3 rounded-lg border" style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
+                <p className="text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>
+                  HWP 파일 — PDF로 변환 후 업로드 필요
+                </p>
+                <p className="text-[11px] font-medium mb-2">{scanInfo?.template_file_name}</p>
+                {scanInfo?.template_file_url && (
+                  <a href={`/api/admin/proxy-file?url=${encodeURIComponent(scanInfo.template_file_url)}`}
+                    download={scanInfo.template_file_name}
+                    className="text-[11px] underline"
+                    style={{ color: 'var(--accent)' }}>
+                    HWP 다운로드
+                  </a>
+                )}
+              </div>
+              <div className="mt-2">
+                <FileUp label="PDF 변환 후 업로드" desc="HWP → PDF 변환 후 업로드해주세요" file={template} setFile={setTemplate} />
+              </div>
+            </div>
+          ) : (
+            <FileUp label="사업계획서 양식 *" desc="제출 양식 파일" file={template} setFile={setTemplate} />
+          )}
+
           {error && <p className="p-3 rounded-lg text-[12px] mb-3" style={{ background: 'var(--error-bg)', color: 'var(--error-text)' }}>{error}</p>}
           <button onClick={handleAnalyze} disabled={analyzing || !announcement || !template} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
             {analyzing ? '🔍 AI 분석 중... (30초~1분)' : '공고 분석하기'}
@@ -110,7 +206,6 @@ export default function AdminBizplanPage() {
         </div>
       ) : (
         <>
-          {/* 분석 결과 */}
           <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <p className="text-[13px] font-semibold mb-3">📋 공고 분석</p>
             <div className="grid grid-cols-2 gap-2 mb-3">
@@ -137,7 +232,6 @@ export default function AdminBizplanPage() {
             </div>
           )}
 
-          {/* 모듈 설정 */}
           <div className="rounded-xl p-5 mb-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <p className="text-[13px] font-semibold mb-3">모듈 설정</p>
             <div className="mb-3"><label className="block text-[12px] mb-1" style={{ color: 'var(--text-secondary)' }}>모듈명</label><input value={moduleName} onChange={e => setModuleName(e.target.value)} className="inp" /></div>
@@ -149,12 +243,20 @@ export default function AdminBizplanPage() {
           <div className="flex gap-2">
             <button onClick={() => setAnalysis(null)} className="px-4 py-3 rounded-lg text-[13px] border" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>← 다시</button>
             <button onClick={handleCreateModule} disabled={saving || !moduleName.trim()} className="flex-1 py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
-              {saving ? '생성 중...' : '모듈 생성 · 마켓 등록'}
+              {saving ? '생성 중...' : '모듈 생성 (비활성으로 등록)'}
             </button>
           </div>
         </>
       )}
     </div>
+  )
+}
+
+export default function AdminBizplanPage() {
+  return (
+    <Suspense>
+      <BizplanPageInner />
+    </Suspense>
   )
 }
 

@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
       newCount = newItems.length
 
       for (const item of newItems) {
+        const attachExt = (item.fileNm || '').split('.').pop()?.toLowerCase()
         await supabaseAdmin.from('bizplan_scans').upsert({
           pblanc_id: item.pblancId,
           title: item.pblancNm,
@@ -92,6 +93,9 @@ export async function GET(request: NextRequest) {
           field: item._field,
           deadline: item.reqstBeginEndDe,
           url: item.pblancUrl,
+          announcement_file_url: item.printFlpthNm || null,
+          template_file_url: attachExt === 'pdf' ? (item.flpthNm || null) : null,
+          template_file_name: item.fileNm || null,
           status: 'new',
         }, { onConflict: 'pblanc_id', ignoreDuplicates: true })
       }
