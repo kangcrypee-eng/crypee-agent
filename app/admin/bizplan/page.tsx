@@ -170,6 +170,12 @@ function BizplanPageInner() {
         </div>
       )}
 
+      {!fetchingFiles && scanId && scanInfo && !scanInfo.announcement_file_url && !announcement && (
+        <div className="p-3 rounded-xl border mb-4 text-[12px]" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.05)', color: '#ef4444' }}>
+          파일 URL 미확인 — 어드민으로 돌아가 <strong>전체 공고 스캔</strong>을 한 번 더 실행하면 자동 로드됩니다. 또는 직접 업로드해주세요.
+        </div>
+      )}
+
       {!analysis ? (
         <div className="rounded-xl p-5 mb-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           <FileUp label="공고문 PDF *" desc="심사기준, 배점, 자격요건" file={announcement} setFile={setAnnouncement} />

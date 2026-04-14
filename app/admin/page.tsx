@@ -494,11 +494,18 @@ function ScansTab() {
                       </>
                     )}
                     {s.status === 'reviewing' && (
-                      <button onClick={() => router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}`)}
-                        className="px-2.5 py-1 rounded text-[10px] font-semibold"
-                        style={{ background: '#5B8DEF', color: '#fff' }}>
-                        이어서 생성
-                      </button>
+                      <>
+                        <button onClick={() => router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}`)}
+                          className="px-2.5 py-1 rounded text-[10px] font-semibold"
+                          style={{ background: '#5B8DEF', color: '#fff' }}>
+                          이어서 생성
+                        </button>
+                        <button onClick={() => updateStatus(s.id, 'new')}
+                          className="px-2.5 py-1 rounded text-[10px] font-medium border"
+                          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
+                          초기화
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
