@@ -82,11 +82,12 @@ export async function GET(request: NextRequest) {
 
       const existingIds = new Set((existing || []).map((e: any) => e.pblanc_id))
       const newItems = activeItems.filter((item: any) => !existingIds.has(item.pblancId))
+      const existingItems = activeItems.filter((item: any) => existingIds.has(item.pblancId))
       newCount = newItems.length
 
       for (const item of newItems) {
         const attachExt = (item.fileNm || '').split('.').pop()?.toLowerCase()
-        await supabaseAdmin.from('bizplan_scans').upsert({
+        await supabaseAdmin.from('bizplan_scans').insert({
           pblanc_id: item.pblancId,
           title: item.pblancNm,
           organization: item.jrsdInsttNm,
@@ -97,7 +98,20 @@ export async function GET(request: NextRequest) {
           template_file_url: attachExt === 'pdf' ? (item.flpthNm || null) : null,
           template_file_name: item.fileNm || null,
           status: 'new',
-        }, { onConflict: 'pblanc_id', ignoreDuplicates: true })
+        })
+      }
+
+      // 기존 항목 파일 URL 업데이트 (컬럼 신규 추가 후 null인 행 채우기)
+      for (const item of existingItems) {
+        const attachExt = (item.fileNm || '').split('.').pop()?.toLowerCase()
+        await supabaseAdmin.from('bizplan_scans')
+          .update({
+            announcement_file_url: item.printFlpthNm || null,
+            template_file_url: attachExt === 'pdf' ? (item.flpthNm || null) : null,
+            template_file_name: item.fileNm || null,
+          })
+          .eq('pblanc_id', item.pblancId)
+          .is('announcement_file_url', null)
       }
     }
 
