@@ -108,6 +108,10 @@ export async function GET() {
       total: active.length,
       new: newItems.length,
       deleted: expiredIds.length,
+      debug_sample: allItems.slice(0, 3).map((item: any) => ({
+        title: item.pblancNm?.slice(0, 30),
+        reqstBeginEndDe: item.reqstBeginEndDe,
+      })),
       newItems: newItems.map((item: any) => ({
         pblancId: item.pblancId,
         title: item.pblancNm,
