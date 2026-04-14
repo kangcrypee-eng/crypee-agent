@@ -104,47 +104,40 @@ function BizplanPageInner() {
     if (!moduleName.trim() || !analysis) return
     setSaving(true)
     const moduleId = `BP${Date.now().toString().slice(-6)}`
+    const p1 = analysis.phase1 || {}
+    const p2 = analysis.phase2 || {}
+    const totalPages = p2.total_pages || 10
+    const sectionTitles = Array.isArray(p2.sections) ? p2.sections.map((s: any) => s.title).filter(Boolean) : []
+
     const systemPrompt = buildSystemPrompt(analysis)
+    const userPromptTemplate = buildUserPromptTemplate(p1, p2, moduleName, totalPages)
+    const additionalInputs = buildAdditionalInputs(p1)
 
     const { error: err } = await supabase.from('modules').insert({
-      id: moduleId, name: moduleName, description: moduleDesc,
-      category: '사업계획서', icon: '📋',
-      tags: ['사업계획서', '정부지원', analysis.phase1?.field || ''].filter(Boolean),
-      mode: 'bizplan', output_mode: 'generate',
-      ai_model: 'claude-opus-4-6', max_tokens: 16384, temperature: 0.3,
+      id: moduleId,
+      name: moduleName,
+      description: moduleDesc,
+      category: '사업계획서',
+      icon: '📋',
+      tags: ['사업계획서', '정부지원', p1.field || '', p1.organization || ''].filter(Boolean),
+      mode: 'bizplan',
+      output_mode: 'generate',
+      ai_model: 'claude-sonnet-4-6',
+      max_tokens: 16384,
+      temperature: 0.25,
       system_prompt: systemPrompt,
-      user_prompt_template: `[사업자 정보]
-상호: {{business_name}}
-대표자: {{representative}}
-업종: {{sector}} / {{item}}
-서비스: {{service_desc}}
-타겟 고객: {{target_customer}}
-실적: {{track_record}}
-
-[사업 아이디어]
-{{idea}}
-
-[핵심 차별점]
-{{differentiator}}
-
-[팀 구성]
-{{team}}
-
-[현재 진행 상태]
-{{current_status}}
-
-[강조할 점]
-{{emphasis}}
-
-위 정보를 바탕으로, 분석된 공고의 양식 구조와 심사배점에 맞춰 사업계획서를 작성해주세요.`,
-      additional_inputs: [
-        { key: 'idea', label: '사업 아이디어', type: 'textarea', placeholder: '어떤 문제를 해결하고, 어떤 방식으로 해결하는지 설명해주세요', required: true },
-        { key: 'differentiator', label: '핵심 차별점', type: 'textarea', placeholder: '기존 솔루션 대비 차별점', required: true },
-        { key: 'team', label: '팀 구성 (선택)', type: 'textarea', placeholder: '팀원 수, 역할, 주요 경력', required: false },
-        { key: 'current_status', label: '현재 진행 상태 (선택)', type: 'text', placeholder: '예: MVP 완성, 매출 발생', required: false },
-        { key: 'emphasis', label: '강조할 점 (선택)', type: 'text', placeholder: '예: 특허 보유, 해외 진출', required: false },
-      ],
-      credit_cost: 0, price_krw: modulePrice, status: 'inactive',
+      user_prompt_template: userPromptTemplate,
+      additional_inputs: additionalInputs,
+      output_formats: ['pdf', 'docx', 'txt'],
+      default_format: 'pdf',
+      expected_pages: String(totalPages),
+      tone: '비즈니스 경어',
+      language: 'ko',
+      required_sections: sectionTitles,
+      min_section_length: 500,
+      credit_cost: 0,
+      price_krw: modulePrice,
+      status: 'inactive',
     })
 
     if (err) { setMsg('실패: ' + err.message); setSaving(false); return }
@@ -319,11 +312,152 @@ function FileUp({ label, desc, file, setFile }: { label: string; desc: string; f
 }
 
 function buildSystemPrompt(analysis: any): string {
-  const p1 = analysis.phase1 || {}; const p2 = analysis.phase2 || {}; const st = analysis.structure || {}
-  let p = `당신은 정부지원사업 사업계획서 작성 전문가입니다.\n\n[공고 분석]\n사업명: ${p1.program_name || ''}\n주관: ${p1.organization || ''}\n분야: ${p1.field || ''}\n기간: ${p1.period || ''}\n`
-  if (Array.isArray(p1.evaluation) && p1.evaluation.length) { p += '\n[심사항목]\n'; p1.evaluation.forEach((e: any) => { p += `- ${e.name}: ${e.score}점\n`; if (Array.isArray(e.criteria) && e.criteria.length) p += `  세부: ${e.criteria.join(', ')}\n` }) }
-  if (Array.isArray(p2.sections) && p2.sections.length) { p += `\n[양식 구조 — ${p2.total_pages || '미정'}페이지]\n`; p2.sections.forEach((s: any, i: number) => { p += `${s.number || i + 1}. ${s.title}${s.page_limit ? ` (${s.page_limit}p)` : ''}\n` }) }
-  if (Array.isArray(st.sections) && st.sections.length) { p += '\n[배점 최적화]\n'; st.sections.forEach((s: any) => { p += `- ${s.title}: ${s.estimated_pages}p, ${s.focus || ''}\n` }) }
-  p += `\n[작성 원칙]\n1. 양식 섹션 구조를 정확히 따를 것\n2. 배점 높은 항목에 집중\n3. 정량적 수치 필수 (추정치는 [확인 필요])\n4. 이미지 필요 위치에 [이미지: 설명] 마커\n5. 핵심 문장 **볼드** 강조\n6. 한국어 작성`
+  const p1 = analysis.phase1 || {}
+  const p2 = analysis.phase2 || {}
+  const st = analysis.structure || {}
+  const totalPages = p2.total_pages || 10
+
+  let p = `당신은 정부지원사업 사업계획서 작성 전문 컨설턴트입니다. ${p1.program_name || '정부지원사업'} 사업계획서를 작성합니다.\n`
+
+  // 공고 분석
+  p += `\n[공고 분석 — ${p1.program_name || ''}]\n`
+  p += `사업명: ${p1.program_name || ''}\n`
+  p += `주관: ${p1.organization || ''}\n`
+  if (p1.field) p += `분야: ${p1.field}\n`
+  if (p1.period) p += `기간: ${p1.period}\n`
+  if (p1.budget) p += `지원규모: ${p1.budget}\n`
+  if (p1.eligibility) {
+    const elig = Array.isArray(p1.eligibility) ? p1.eligibility.join(', ') : p1.eligibility
+    p += `지원대상: ${elig}\n`
+  }
+  if (p1.schedule) p += `접수: ${p1.schedule}\n`
+
+  // 평가항목
+  if (Array.isArray(p1.evaluation) && p1.evaluation.length) {
+    const totalScore = p1.evaluation.reduce((s: number, e: any) => s + (e.score || 0), 0)
+    p += `\n[평가항목 — 총 ${totalScore}점]\n`
+    p1.evaluation.forEach((e: any, i: number) => {
+      p += `${i + 1}. ${e.name}: ${e.score}점\n`
+      if (Array.isArray(e.criteria) && e.criteria.length) {
+        e.criteria.forEach((c: string) => { p += `   - ${c}\n` })
+      }
+    })
+  }
+
+  // 가점
+  if (Array.isArray(p1.bonus) && p1.bonus.length) {
+    p += `\n[가점 항목]\n`
+    p1.bonus.forEach((b: any) => { p += `- ${typeof b === 'string' ? b : JSON.stringify(b)}\n` })
+  }
+
+  // 양식 구조
+  if (Array.isArray(p2.sections) && p2.sections.length) {
+    p += `\n[양식 구조 — 반드시 이 순서와 구조를 따를 것]\n`
+    p += `※ ${totalPages}페이지 이내\n`
+    if (p2.format) p += `※ 서식: ${p2.format}\n`
+
+    p2.sections.forEach((s: any, i: number) => {
+      p += `\n■ ${s.number || (i + 1)}. ${s.title}`
+      if (s.page_limit) p += ` — ${s.page_limit}페이지`
+      // 배점 최적화 매칭
+      const matched = Array.isArray(st.sections) ? st.sections.find((ss: any) => ss.title === s.title) : null
+      if (matched?.estimated_pages) p += ` (약 ${matched.estimated_pages}p)`
+      p += '\n'
+      if (Array.isArray(s.required_items) && s.required_items.length) {
+        s.required_items.forEach((item: string) => { p += `- ${item}\n` })
+      }
+      if (s.notes) p += `※ ${s.notes}\n`
+      if (matched?.focus) p += `[배점 집중: ${matched.focus}]\n`
+    })
+  }
+
+  // 필수 표
+  if (Array.isArray(p2.required_tables) && p2.required_tables.length) {
+    p += `\n[필수 표/도표]\n`
+    p2.required_tables.forEach((t: any) => { p += `- ${typeof t === 'string' ? t : JSON.stringify(t)}\n` })
+  }
+
+  // 작성 원칙
+  p += `\n[작성 원칙]\n`
+  p += `1. 양식의 섹션 구조, 표 형식, 순서를 정확히 따를 것\n`
+  p += `2. ${totalPages}페이지 이내로 작성`
+  if (Array.isArray(st.sections) && st.sections.length) {
+    p += ` — 섹션별 분량:\n`
+    st.sections.forEach((s: any) => { if (s.title && s.estimated_pages) p += `   - ${s.title}: 약 ${s.estimated_pages}p\n` })
+  } else {
+    p += '\n'
+  }
+  p += `3. 심사위원이 30초 안에 핵심을 파악할 수 있도록 각 섹션 첫 2줄에 핵심 배치\n`
+  p += `4. 정량적 수치 필수 — 시장규모, 매출목표, 고용계획 (추정치는 [확인 필요])\n`
+  p += `5. 표는 마크다운 표 형식으로 작성 (| 컬럼1 | 컬럼2 | 형식)\n`
+  p += `6. 이미지 필요 위치에 [이미지: 설명] 마커 삽입\n`
+  p += `7. 핵심 문장은 **볼드**로 강조\n`
+  p += `8. ◦ 항목 → - 세부항목 형식으로 계층 구조 유지\n`
+  p += `9. 평가배점 높은 항목에 분량과 내용을 집중\n`
+  p += `10. 한국어로 작성\n`
+  if (p1.etc) p += `11. 공고 특이사항: ${p1.etc}\n`
+
   return p
+}
+
+function buildUserPromptTemplate(p1: any, p2: any, programName: string, totalPages: number): string {
+  const sectionList = Array.isArray(p2.sections)
+    ? p2.sections.map((s: any) => s.title).filter(Boolean).join(', ')
+    : ''
+
+  return `[사업자 정보]
+상호(예정): {{business_name}}
+대표자: {{representative}}
+업종: {{sector}} / {{item}}
+서비스: {{service_desc}}
+타겟 고객: {{target_customer}}
+실적: {{track_record}}
+
+[사업 아이디어]
+{{idea}}
+
+[핵심 차별점]
+{{differentiator}}
+
+[팀 구성]
+{{team}}
+
+[현재 진행 상태]
+{{current_status}}
+
+[강조할 점]
+{{emphasis}}
+
+[예상 사업비 사용 계획]
+{{budget_plan}}
+
+위 정보를 바탕으로 ${programName} 사업계획서 양식에 맞춰 작성해주세요.
+- 양식의 모든 섹션(${sectionList || '전체'})을 빠짐없이 작성
+- ${totalPages}페이지 이내
+- 정보 부족한 부분은 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시`
+}
+
+function buildAdditionalInputs(p1: any): any[] {
+  const inputs: any[] = [
+    { key: 'idea', label: '사업 아이디어', type: 'textarea', placeholder: '어떤 문제를 해결하고, 어떤 방식으로 해결하는지 상세히 설명해주세요', required: true },
+    { key: 'differentiator', label: '핵심 차별점', type: 'textarea', placeholder: '기존 솔루션 대비 기술적/사업적 차별점', required: true },
+    { key: 'team', label: '팀 구성 현황', type: 'textarea', placeholder: '대표자 경력, 팀원 역할/역량, 협력기관 (있으면)', required: false },
+    { key: 'current_status', label: '현재 진행 상태', type: 'text', placeholder: '예: 아이디어 단계, MVP 개발 중, 시제품 완성', required: false },
+    { key: 'emphasis', label: '강조할 점', type: 'text', placeholder: '예: 특허 보유, 수상 이력, 정부지원 수혜 이력', required: false },
+    { key: 'budget_plan', label: '사업비 사용 계획 (간략)', type: 'textarea', placeholder: '예: 시제품 제작 1500만원, 마케팅 500만원, 인건비 1000만원', required: false },
+  ]
+
+  // 신청 분야가 여러 개면 선택 필드 추가
+  if (Array.isArray(p1.eligibility) && p1.eligibility.length > 1) {
+    inputs.splice(2, 0, {
+      key: 'apply_field',
+      label: '신청 분야',
+      type: 'select',
+      placeholder: '',
+      required: true,
+      options: p1.eligibility,
+    })
+  }
+
+  return inputs
 }
