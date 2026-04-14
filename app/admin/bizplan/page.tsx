@@ -23,6 +23,7 @@ function BizplanPageInner() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
+  const [templateIncluded, setTemplateIncluded] = useState(false)
   const [scanInfo, setScanInfo] = useState<{ url?: string; announcement_file_url?: string; template_file_url?: string; template_file_name?: string } | null>(null)
   const [fetchingFiles, setFetchingFiles] = useState(false)
 
@@ -77,12 +78,13 @@ function BizplanPageInner() {
   const isHwpTemplate = templateExt === 'hwp' || templateExt === 'hwpx'
 
   const handleAnalyze = async () => {
-    if (!announcement || !template) { setError('공고문과 양식을 모두 업로드해주세요'); return }
+    if (!announcement) { setError('공고문을 업로드해주세요'); return }
+    if (!templateIncluded && !template) { setError('양식을 업로드하거나 "공고문에 양식 포함"을 체크해주세요'); return }
     setError(''); setAnalyzing(true)
     try {
       const fd = new FormData()
       fd.append('announcement', announcement)
-      fd.append('template', template)
+      if (!templateIncluded && template) fd.append('template', template)
       const res = await fetch('/api/bizplan/analyze', { method: 'POST', body: fd })
       const data = await res.json()
       if (!data.success) { setError(data.error || '분석 실패'); setAnalyzing(false); return }
@@ -200,9 +202,14 @@ function BizplanPageInner() {
 
       {!analysis ? (
         <div className="rounded-xl p-5 mb-4 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-          <FileUp label="공고문 PDF *" desc="심사기준, 배점, 자격요건" file={announcement} setFile={setAnnouncement} />
+          <FileUp label="공고문 *" desc="PDF, HWP, DOCX — 심사기준, 배점, 자격요건" file={announcement} setFile={setAnnouncement} />
 
-          {isHwpTemplate && !template ? (
+          <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+            <input type="checkbox" checked={templateIncluded} onChange={e => setTemplateIncluded(e.target.checked)} className="w-3.5 h-3.5 accent-[var(--accent)]" />
+            <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>공고문 안에 사업계획서 양식 포함됨 (별도 양식 없음)</span>
+          </label>
+
+          {!templateIncluded && isHwpTemplate && !template ? (
             <div className="mb-4">
               <p className="text-[12px] font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>사업계획서 양식 *</p>
               <div className="p-3 rounded-lg border" style={{ background: 'var(--surface-hover)', borderColor: 'var(--border)' }}>
@@ -223,12 +230,12 @@ function BizplanPageInner() {
                 <FileUp label="PDF 변환 후 업로드" desc="HWP → PDF 변환 후 업로드해주세요" file={template} setFile={setTemplate} />
               </div>
             </div>
-          ) : (
-            <FileUp label="사업계획서 양식 *" desc="제출 양식 파일" file={template} setFile={setTemplate} />
-          )}
+          ) : !templateIncluded ? (
+            <FileUp label="사업계획서 양식 *" desc="PDF, HWP, DOCX — 제출 양식 파일" file={template} setFile={setTemplate} />
+          ) : null}
 
           {error && <p className="p-3 rounded-lg text-[12px] mb-3" style={{ background: 'var(--error-bg)', color: 'var(--error-text)' }}>{error}</p>}
-          <button onClick={handleAnalyze} disabled={analyzing || !announcement || !template} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
+          <button onClick={handleAnalyze} disabled={analyzing || !announcement || (!templateIncluded && !template)} className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-50" style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
             {analyzing ? '🔍 AI 분석 중... (30초~1분)' : '공고 분석하기'}
           </button>
         </div>

@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
     const templateFile = formData.get('template') as File | null
     const existingFile = formData.get('existing') as File | null
 
-    if (!announcementFile || !templateFile) {
-      return NextResponse.json({ error: '공고문과 양식 파일을 모두 업로드해주세요' }, { status: 400 })
+    if (!announcementFile) {
+      return NextResponse.json({ error: '공고문 파일을 업로드해주세요' }, { status: 400 })
     }
 
     // PDF 텍스트 추출 (unpdf + CMap CDN for Korean CIDFont)
@@ -97,13 +97,8 @@ export async function POST(request: NextRequest) {
       return Buffer.from(arrayBuffer).toString('utf-8')
     }
 
-    const hwpExts = ['.hwp', '.hwpx']
-    if (hwpExts.some(ext => templateFile.name.toLowerCase().endsWith(ext))) {
-      return NextResponse.json({ error: 'HWP 파일은 지원하지 않습니다. PDF로 변환 후 업로드해주세요.' }, { status: 400 })
-    }
-
     const announcementText = await extractText(announcementFile)
-    const templateText = await extractText(templateFile)
+    const templateText = await extractText(templateFile || announcementFile)
 
     if (!announcementText.trim()) {
       return NextResponse.json({ error: '공고문에서 텍스트를 추출할 수 없습니다. PDF 파일을 확인해주세요.' }, { status: 400 })
