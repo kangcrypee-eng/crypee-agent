@@ -97,11 +97,23 @@ export async function POST(request: NextRequest) {
       return Buffer.from(arrayBuffer).toString('utf-8')
     }
 
+    const isHwp = (f: File) => /\.hwpx?$/i.test(f.name)
+
+    if (isHwp(announcementFile)) {
+      return NextResponse.json({ error: '공고문이 HWP 파일입니다. PDF로 변환 후 업로드해주세요.\n변환: 한글에서 "다른 이름으로 저장 → PDF" 또는 온라인 변환 도구 사용' }, { status: 400 })
+    }
+    if (templateFile && isHwp(templateFile)) {
+      return NextResponse.json({ error: '사업계획서 양식이 HWP 파일입니다. PDF로 변환 후 업로드해주세요.\n변환: 한글에서 "다른 이름으로 저장 → PDF" 또는 온라인 변환 도구 사용' }, { status: 400 })
+    }
+
     const announcementText = await extractText(announcementFile)
     const templateText = await extractText(templateFile || announcementFile)
 
     if (!announcementText.trim()) {
-      return NextResponse.json({ error: '공고문에서 텍스트를 추출할 수 없습니다. PDF 파일을 확인해주세요.' }, { status: 400 })
+      return NextResponse.json({ error: '공고문에서 텍스트를 추출할 수 없습니다. 텍스트가 포함된 PDF 파일을 확인해주세요.' }, { status: 400 })
+    }
+    if (templateFile && !templateText.trim()) {
+      return NextResponse.json({ error: '사업계획서 양식에서 텍스트를 추출할 수 없습니다. 텍스트가 포함된 PDF 파일을 확인해주세요.' }, { status: 400 })
     }
 
     // Phase 1: 공고문 분석
