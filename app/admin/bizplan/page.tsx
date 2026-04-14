@@ -103,6 +103,7 @@ function BizplanPageInner() {
   const handleCreateModule = async () => {
     if (!moduleName.trim() || !analysis) return
     setSaving(true)
+    try {
     const moduleId = `BP${Date.now().toString().slice(-6)}`
     const p1 = analysis.phase1 || {}
     const p2 = analysis.phase2 || {}
@@ -140,7 +141,7 @@ function BizplanPageInner() {
       status: 'inactive',
     })
 
-    if (err) { setMsg('실패: ' + err.message); setSaving(false); return }
+    if (err) { setMsg('모듈 생성 실패: ' + err.message); setSaving(false); return }
 
     if (scanId) {
       await supabase.from('bizplan_scans').update({
@@ -150,8 +151,12 @@ function BizplanPageInner() {
       }).eq('id', scanId)
     }
 
-    setMsg(`✅ 모듈 ${moduleId} 생성 완료 (비활성 상태 — 어드민에서 활성화)`)
-    setTimeout(() => router.push('/admin'), 2000)
+      setMsg(`✅ 모듈 ${moduleId} 생성 완료 (비활성 상태 — 어드민에서 활성화)`)
+      setTimeout(() => router.push('/admin'), 2000)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '알 수 없는 오류'
+      setMsg('오류: ' + msg)
+    }
     setSaving(false)
   }
 
@@ -239,10 +244,10 @@ function BizplanPageInner() {
           <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <p className="text-[13px] font-semibold mb-3">📋 공고 분석</p>
             <div className="grid grid-cols-2 gap-2 mb-3">
-              {[['사업명', analysis.phase1?.program_name], ['주관기관', analysis.phase1?.organization], ['분야', analysis.phase1?.field], ['기간', analysis.phase1?.period]].filter(([, v]) => v).map(([l, v]) => (
-                <div key={l as string} className="p-2 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
+              {([['사업명', analysis.phase1?.program_name], ['주관기관', analysis.phase1?.organization], ['분야', analysis.phase1?.field], ['기간', analysis.phase1?.period]] as [string, unknown][]).filter(([, v]) => v != null && v !== '').map(([l, v]) => (
+                <div key={l} className="p-2 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
                   <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{l}</div>
-                  <div className="text-[12px] font-medium">{v as string}</div>
+                  <div className="text-[12px] font-medium">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</div>
                 </div>
               ))}
             </div>
@@ -449,13 +454,14 @@ function buildAdditionalInputs(p1: any): any[] {
 
   // 신청 분야가 여러 개면 선택 필드 추가
   if (Array.isArray(p1.eligibility) && p1.eligibility.length > 1) {
+    const options = p1.eligibility.map((e: unknown) => typeof e === 'string' ? e : JSON.stringify(e))
     inputs.splice(2, 0, {
       key: 'apply_field',
       label: '신청 분야',
       type: 'select',
       placeholder: '',
       required: true,
-      options: p1.eligibility,
+      options,
     })
   }
 
