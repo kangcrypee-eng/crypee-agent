@@ -66,14 +66,22 @@ export async function GET() {
       .from('bizplan_scans')
       .select('id, pblanc_id, deadline, status')
 
+    const parseDeadlineEnd = (deadline: string): Date | null => {
+      if (!deadline) return null
+      // "2026.01.23 ~ 2026.02.13" or "2026-01-23 ~ 2026-02-13"
+      const parts = deadline.split(' ~ ')
+      const endStr = (parts[1] || parts[0])?.trim().replace(/\./g, '-')
+      if (!endStr) return null
+      const d = new Date(endStr)
+      return isNaN(d.getTime()) ? null : d
+    }
+
     const expiredIds = (allScans || [])
       .filter(s => {
         if (s.status === 'module_created') return false
-        if (!s.deadline) return false
-        const parts = s.deadline.split(' ~ ')
-        const endStr = parts[1]?.trim()
-        if (!endStr) return false
-        return new Date(endStr) < now
+        const end = parseDeadlineEnd(s.deadline)
+        if (!end) return false
+        return end < now
       })
       .map(s => s.id)
 

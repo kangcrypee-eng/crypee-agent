@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [subscribers, setSubscribers] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
+  const [revPeriod, setRevPeriod] = useState<'week'|'month'|'quarter'|'half'|'year'|'all'>('month')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [toast, setToast] = useState('')
 
@@ -60,19 +61,34 @@ export default function AdminPage() {
   }
   const getModelLabel = (model: string) => MODEL_PRICING[model as keyof typeof MODEL_PRICING]?.label || model
 
+  // 기간 필터
+  const periodStart = (period: typeof revPeriod): Date => {
+    const d = new Date()
+    if (period === 'week') { d.setDate(d.getDate() - 7); return d }
+    if (period === 'month') { d.setMonth(d.getMonth() - 1); return d }
+    if (period === 'quarter') { d.setMonth(d.getMonth() - 3); return d }
+    if (period === 'half') { d.setMonth(d.getMonth() - 6); return d }
+    if (period === 'year') { d.setFullYear(d.getFullYear() - 1); return d }
+    return new Date(0)
+  }
+  const filteredPayments = revPeriod === 'all' ? payments : payments.filter(p => {
+    const paidAt = new Date(p.paid_at || p.created_at)
+    return paidAt >= periodStart(revPeriod)
+  })
+
   // 통계 계산
-  const totalRevenue = payments.reduce((s, p) => s + (p.amount || 0), 0)
+  const totalRevenue = filteredPayments.reduce((s, p) => s + (p.amount || 0), 0)
   const totalGenerations = generations.length
   const uniqueUsers = new Set(generations.map(g => g.user_id)).size
-  const uniquePayers = new Set(payments.map(p => p.user_id)).size
+  const uniquePayers = new Set(filteredPayments.map(p => p.user_id)).size
   const activeSubs = subscribers.filter(s => s.is_active).length
 
-  // 모듈별 통계
+  // 모듈별 통계 (기간 필터 반영)
   const moduleStats = (moduleId: string) => {
     const uses = generations.filter(g => g.module_id === moduleId).length
     const users = new Set(generations.filter(g => g.module_id === moduleId).map(g => g.user_id)).size
-    const payers = new Set(payments.filter(p => p.module_id === moduleId).map(p => p.user_id)).size
-    const revenue = payments.filter(p => p.module_id === moduleId).reduce((s, p) => s + (p.amount || 0), 0)
+    const payers = new Set(filteredPayments.filter(p => p.module_id === moduleId).map(p => p.user_id)).size
+    const revenue = filteredPayments.filter(p => p.module_id === moduleId).reduce((s, p) => s + (p.amount || 0), 0)
     return { uses, users, payers, revenue }
   }
 
@@ -103,10 +119,31 @@ export default function AdminPage() {
 
       {/* ===== 대시보드 탭 ===== */}
       {tab==='dashboard'&&<>
-        {/* 핵심 지표 */}
+        {/* 테스트 모드 안내 */}
+        {totalRevenue === 0 && payments.length === 0 && (
+          <div className="rounded-xl p-4 mb-4 border text-[12.5px] leading-relaxed" style={{background:'rgba(239,170,91,0.08)',borderColor:'rgba(239,170,91,0.3)',color:'#EFAA5B'}}>
+            <span className="font-bold">⚠️ 현재 테스트 결제 모드</span>
+            <span className="ml-2" style={{color:'var(--text-secondary)'}}>토스페이먼츠 실 결제 전환 후 이 배너는 사라집니다. 실 결제 시작 전 확인사항: 토스 대시보드에서 라이브 키로 교체, Vercel 환경변수 TOSS_SECRET_KEY / NEXT_PUBLIC_TOSS_CK 업데이트 후 재배포.</span>
+          </div>
+        )}
+
+        {/* 기간 필터 + 핵심 지표 */}
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <span className="text-[12px] font-semibold" style={{color:'var(--text-muted)'}}>매출 기간</span>
+          <div className="flex gap-1">
+            {([['week','주간'],['month','월간'],['quarter','분기'],['half','반기'],['year','연간'],['all','전체']] as const).map(([k,l])=>(
+              <button key={k} onClick={()=>setRevPeriod(k)}
+                className="px-3 py-1 rounded-lg text-[11.5px] font-medium transition-all"
+                style={revPeriod===k?{background:'var(--accent)',color:'#fff'}:{background:'var(--surface)',color:'var(--text-muted)',border:'1px solid var(--border)'}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5 mb-5">
           {[
-            ['총 매출','₩'+totalRevenue.toLocaleString(),'var(--accent)'],
+            ['매출',`₩${totalRevenue.toLocaleString()}`,'var(--accent)'],
             ['총 생성',''+totalGenerations,''],
             ['사용자',''+uniqueUsers+'명',''],
             ['결제자',''+uniquePayers+'명','var(--accent)'],
