@@ -1,72 +1,24 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-export const maxDuration = 60
+export const maxDuration = 30
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
 
-const ALL_FIELDS: Record<string, string> = {
-  '기술': '01', '인력': '02', '수출': '03', '내수': '04',
-  '창업': '05', '경영': '06', '기타': '07', '융복합': '08',
-}
-
-async function fetchBizinfo(bizinfoKey: string, fieldCode?: string): Promise<any[]> {
-  const params = new URLSearchParams({
-    crtfcKey: bizinfoKey, dataType: 'json', searchCnt: '50', pageUnit: '50', pageIndex: '1',
-  })
-  if (fieldCode) params.set('searchLclasId', fieldCode)
-  const res = await fetch(`https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do?${params}`)
-  const text = await res.text()
-  try { return JSON.parse(text)?.jsonArray || [] } catch { return [] }
-}
-
-// GET: 전체 분야 공고 스캔 (오늘 이후 접수분만)
-export async function GET() {
-  const bizinfoKey = process.env.BIZINFO_API_KEY
-  if (!bizinfoKey) return NextResponse.json({ error: 'BIZINFO_API_KEY 미설정' }, { status: 500 })
-
+// POST: 클라이언트가 bizinfo에서 가져온 결과를 받아 DB 처리
+export async function POST(request: NextRequest) {
   try {
-    const now = new Date()
-    const todayStr = now.toISOString().split('T')[0] // 2026-04-02
-    const seen = new Set<string>()
-    let allItems: any[] = []
-
-    // 전체 분야 스캔
-    for (const [fieldName, fieldCode] of Object.entries(ALL_FIELDS)) {
-      const items = await fetchBizinfo(bizinfoKey, fieldCode)
-      for (const item of items) {
-        if (seen.has(item.pblancId)) continue
-        seen.add(item.pblancId)
-        item._field = fieldName
-        allItems.push(item)
-      }
+    const { activeItems } = await request.json()
+    if (!Array.isArray(activeItems)) {
+      return NextResponse.json({ error: 'activeItems 필요' }, { status: 400 })
     }
 
-    const parseKoreanDate = (str: string): Date | null => {
-      const normalized = str.trim().replace(/\./g, '-')
-      const d = new Date(normalized)
-      return isNaN(d.getTime()) ? null : d
-    }
+    const activePblancIds = new Set(activeItems.map((item: any) => item.pblancId).filter(Boolean))
 
-    // 마감일이 오늘 이상인 것만 (마감일 없으면 제외)
-    const todayStart = new Date(todayStr)
-    const active = allItems.filter((item: any) => {
-      if (!item.reqstBeginEndDe) return false
-      const parts = item.reqstBeginEndDe.split('~')
-      const endStr = (parts[1] || parts[0])?.trim()
-      if (!endStr) return false
-      const end = parseKoreanDate(endStr)
-      if (!end) return false
-      return end >= todayStart
-    })
-
-    // 현재 API에서 유효한 pblancId 목록
-    const activePblancIds = new Set(active.map((item: any) => item.pblancId).filter(Boolean))
-
-    // DB에 있는 항목 중 API에 더 이상 없는 것 = 만료 → 삭제 (module_created 제외)
+    // 만료된 항목 삭제 (module_created 제외)
     const { data: allScans } = await supabaseAdmin
       .from('bizplan_scans')
       .select('id, pblanc_id, status')
@@ -79,52 +31,34 @@ export async function GET() {
       await supabaseAdmin.from('bizplan_scans').delete().in('id', expiredIds)
     }
 
-    // 이미 DB에 있는 공고 확인
-    const pblancIds = [...activePblancIds]
-    if (pblancIds.length === 0) return NextResponse.json({ total: 0, new: 0, newItems: [], deleted: expiredIds.length })
+    if (activeItems.length === 0) {
+      return NextResponse.json({ total: 0, new: 0, deleted: expiredIds.length })
+    }
 
+    // 이미 있는 항목 확인
+    const pblancIds = [...activePblancIds]
     const { data: existing } = await supabaseAdmin
       .from('bizplan_scans')
       .select('pblanc_id')
       .in('pblanc_id', pblancIds)
 
     const existingIds = new Set((existing || []).map(e => e.pblanc_id))
-    const newItems = active.filter((item: any) => !existingIds.has(item.pblancId))
+    const newItems = activeItems.filter((item: any) => !existingIds.has(item.pblancId))
 
-    // 신규 공고 DB 저장
     for (const item of newItems) {
       await supabaseAdmin.from('bizplan_scans').upsert({
         pblanc_id: item.pblancId,
-        title: item.pblancNm,
-        organization: item.jrsdInsttNm,
-        field: item._field || item.pldirSportRealmLclasCodeNm,
-        deadline: item.reqstBeginEndDe,
-        url: item.pblancUrl,
+        title: item.title,
+        organization: item.organization,
+        field: item.field,
+        deadline: item.deadline,
+        url: item.url,
         status: 'new',
       }, { onConflict: 'pblanc_id', ignoreDuplicates: true })
     }
 
-    return NextResponse.json({
-      total: active.length,
-      new: newItems.length,
-      deleted: expiredIds.length,
-      debug_sample: allItems.slice(0, 3).map((item: any) => ({
-        title: item.pblancNm?.slice(0, 30),
-        reqstBeginEndDe: item.reqstBeginEndDe,
-      })),
-      newItems: newItems.map((item: any) => ({
-        pblancId: item.pblancId,
-        title: item.pblancNm,
-        organization: item.jrsdInsttNm,
-        field: item._field,
-        deadline: item.reqstBeginEndDe,
-        url: item.pblancUrl,
-      })),
-    })
+    return NextResponse.json({ total: activeItems.length, new: newItems.length, deleted: expiredIds.length })
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message || String(error),
-      stack: error.stack?.split('\n').slice(0, 5),
-    }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
