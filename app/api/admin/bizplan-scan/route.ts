@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 이미 있는 항목 확인
-    const pblancIds = [...activePblancIds]
+    const pblancIds = Array.from(activePblancIds)
     const { data: existing } = await supabaseAdmin
       .from('bizplan_scans')
       .select('pblanc_id')
