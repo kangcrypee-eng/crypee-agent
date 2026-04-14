@@ -4,6 +4,15 @@ import { useState, useEffect, Suspense, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 
+const loadTossV1Script=():Promise<void>=>new Promise((resolve,reject)=>{
+  if((window as any).TossPayments){resolve();return}
+  const s=document.createElement('script')
+  s.src='https://js.tosspayments.com/v1/payment'
+  s.onload=()=>resolve()
+  s.onerror=()=>reject(new Error('결제 스크립트 로드 실패'))
+  document.head.appendChild(s)
+})
+
 function Pv() {
   const params=useSearchParams();const router=useRouter();const{user}=useAuth()
   const id=params.get('id')||''
@@ -11,7 +20,7 @@ function Pv() {
   const[m,setM]=useState<any>(null);const[result,setResult]=useState('');const[chains,setChains]=useState<any[]>([]);const[fmt,setFmt]=useState('pdf');const[ld,setLd]=useState(true)
   const[editing,setEditing]=useState(false);const[editText,setEditText]=useState('');const[saving,setSaving]=useState(false)
   const[genId,setGenId]=useState('');const[regenCount,setRegenCount]=useState(0);const[regenerating,setRegenerating]=useState(false);const[regenProg,setRegenProg]=useState(0)
-  const[isLocked,setIsLocked]=useState(false);const[unlocking,setUnlocking]=useState(false)
+  const[isLocked,setIsLocked]=useState(true);const[unlocking,setUnlocking]=useState(false)
   const textareaRef=useRef<HTMLTextAreaElement>(null)
 
   useEffect(()=>{
@@ -20,15 +29,17 @@ function Pv() {
         setM(mod);setFmt(mod.default_format||'pdf')
         if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
         // bizplan 모듈: 결제 전 잠금
-        if(mod.mode==='bizplan'&&(mod.price_krw||0)>0&&user){
+        if(mod.mode==='bizplan'){
           if(purchased){
-            // URL에 purchased=true → 결제 완료
             setIsLocked(false)
-          }else{
+          }else if(user){
             supabase.from('payments').select('id').eq('user_id',user.id).eq('module_id',id).eq('status','paid').limit(1).then(({data:pays})=>{
               setIsLocked(!pays||pays.length===0)
             })
           }
+          // user 없으면 isLocked=true 유지
+        }else{
+          setIsLocked(false) // bizplan 아니면 잠금 해제
         }
       }
       // 결과물 로드: gid > DB 최신 > sessionStorage
@@ -69,14 +80,12 @@ function Pv() {
     }
     setUnlocking(true)
     try{
-      const{loadTossPayments}=await import('@tosspayments/tosspayments-sdk')
-      const tossPayments=await loadTossPayments(clientKey)
-      const payment=tossPayments.payment({customerKey:user.id})
+      await loadTossV1Script()
+      const tossPayments=(window as any).TossPayments(clientKey)
       const orderId=`bp-${user.id.substring(0,8)}-${Date.now()}`
       const appUrl=process.env.NEXT_PUBLIC_APP_URL||window.location.origin
-      await payment.requestPayment({
-        method:'CARD',
-        amount:{currency:'KRW',value:m.price_krw},
+      await tossPayments.requestPayment('카드',{
+        amount:m.price_krw,
         orderId,
         orderName:m.name,
         successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&returnTo=${encodeURIComponent('/preview?id='+m.id+'&purchased=true')}`,

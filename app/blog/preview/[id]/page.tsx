@@ -5,6 +5,15 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
+const loadTossV1Script = (): Promise<void> => new Promise((resolve, reject) => {
+  if ((window as any).TossPayments) { resolve(); return }
+  const s = document.createElement('script')
+  s.src = 'https://js.tosspayments.com/v1/payment'
+  s.onload = () => resolve()
+  s.onerror = () => reject(new Error('결제 스크립트 로드 실패'))
+  document.head.appendChild(s)
+})
+
 interface BlogPost {
   id: string
   business_type: string
@@ -67,14 +76,12 @@ export default function BlogPreviewPage() {
     }
     setPaying(true)
     try {
-      const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk')
-      const tossPayments = await loadTossPayments(clientKey)
-      const payment = tossPayments.payment({ customerKey: user.id })
+      await loadTossV1Script()
+      const tossPayments = (window as any).TossPayments(clientKey)
       const orderId = `blog-${user.id.substring(0, 8)}-${Date.now()}`
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: 990 },
+      await tossPayments.requestPayment('카드', {
+        amount: 990,
         orderId,
         orderName: 'BlogPilot 블로그 글 1편',
         successUrl: `${appUrl}/api/blog/payment-success?postId=${post.id}&userId=${user.id}`,

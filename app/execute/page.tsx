@@ -42,6 +42,15 @@ function parseBlankFields(text:string){
 
 const fmtPrice=(n:number)=>n===0?'무료':`₩${n.toLocaleString()}`
 
+const loadTossV1Script=():Promise<void>=>new Promise((resolve,reject)=>{
+  if((window as any).TossPayments){resolve();return}
+  const s=document.createElement('script')
+  s.src='https://js.tosspayments.com/v1/payment'
+  s.onload=()=>resolve()
+  s.onerror=()=>reject(new Error('결제 스크립트 로드 실패'))
+  document.head.appendChild(s)
+})
+
 function Exec() {
   const params=useSearchParams();const router=useRouter();const{user}=useAuth()
   const id=params.get('id')||'';const[m,setM]=useState<any>(null);const[mode,setMode]=useState('oneclick')
@@ -217,15 +226,13 @@ ${extraData._existing_plan}
     try{
       const clientKey=process.env.NEXT_PUBLIC_TOSS_CK||''
       if(!clientKey){alert('결제 시스템이 아직 설정되지 않았습니다.');setPaying(false);return}
-      const{loadTossPayments}=await import('@tosspayments/tosspayments-sdk')
-      const tossPayments=await loadTossPayments(clientKey)
-      const payment=tossPayments.payment({customerKey:user.id})
+      await loadTossV1Script()
+      const tossPayments=(window as any).TossPayments(clientKey)
       const orderId=`crypee-${user.id.substring(0,8)}-${Date.now()}`
       const appUrl=process.env.NEXT_PUBLIC_APP_URL||window.location.origin
       const inputData=collectInputData()
-      await payment.requestPayment({
-        method:'CARD',
-        amount:{currency:'KRW',value:price},
+      await tossPayments.requestPayment('카드',{
+        amount:price,
         orderId,
         orderName:m.name,
         successUrl:`${appUrl}/api/payment/success?moduleId=${m.id}&userId=${user.id}&inputData=${encodeURIComponent(JSON.stringify(inputData))}`,

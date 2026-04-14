@@ -105,7 +105,6 @@ export default function AdminPage() {
           <p className="text-[13px]" style={{color:'var(--text-muted)'}}>대시보드 · 모듈 관리 · 구독자</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => router.push('/admin/bizplan')} className="px-4 py-2.5 font-semibold text-[13px] rounded-lg hover:opacity-90 border" style={{borderColor:'var(--accent-border)',color:'var(--accent)'}}>📋 사업계획서 모듈</button>
           <button onClick={() => router.push('/admin/upload')} className="px-5 py-2.5 font-semibold text-[13px] rounded-lg hover:opacity-90" style={{background:'var(--accent)',color:'var(--bg)'}}>+ 새 모듈 생성</button>
         </div>
       </div>
@@ -362,7 +361,7 @@ function ScansTab() {
   const [loading, setLoading] = useState(true)
   const [scanning, setScanning] = useState(false)
   const [scanResult, setScanResult] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all'|'new'|'reviewing'|'module_created'|'skipped'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all'|'new'|'skipped'>('all')
   const [sortBy, setSortBy] = useState<'deadline'|'created'>('deadline')
   const router = useRouter()
 
@@ -401,8 +400,6 @@ function ScansTab() {
 
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
     new: { bg: 'var(--accent-bg)', color: 'var(--accent)', label: '신규' },
-    reviewing: { bg: 'rgba(91,141,239,0.1)', color: '#5B8DEF', label: '검토 중' },
-    module_created: { bg: 'rgba(0,184,148,0.1)', color: '#00B894', label: '모듈 생성 완료' },
     skipped: { bg: 'var(--surface)', color: 'var(--text-muted)', label: '건너뜀' },
   }
 
@@ -421,7 +418,7 @@ function ScansTab() {
     <>
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div className="flex gap-1">
-          {([['all','전체'],['new','신규'],['reviewing','검토 중'],['module_created','생성 완료'],['skipped','건너뜀']] as const).map(([k,l]) => (
+          {([['all','전체'],['new','신규'],['skipped','건너뜀']] as const).map(([k,l]) => (
             <button key={k} onClick={() => setStatusFilter(k)}
               className="px-3 py-1 rounded-lg text-[11.5px] font-medium"
               style={statusFilter === k ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
@@ -480,32 +477,18 @@ function ScansTab() {
                   <div className="flex gap-1.5 flex-shrink-0">
                     {s.url && <a href={s.url} target="_blank" className="px-2.5 py-1 rounded text-[10px] font-medium border" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>공고 보기</a>}
                     {s.status === 'new' && (
-                      <>
-                        <button onClick={() => { updateStatus(s.id, 'reviewing'); router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}&org=${encodeURIComponent(s.organization || '')}`) }}
-                          className="px-2.5 py-1 rounded text-[10px] font-semibold"
-                          style={{ background: 'var(--accent)', color: '#fff' }}>
-                          모듈 생성
-                        </button>
-                        <button onClick={() => updateStatus(s.id, 'skipped')}
-                          className="px-2.5 py-1 rounded text-[10px] font-medium"
-                          style={{ color: 'var(--text-muted)' }}>
-                          건너뛰기
-                        </button>
-                      </>
+                      <button onClick={() => updateStatus(s.id, 'skipped')}
+                        className="px-2.5 py-1 rounded text-[10px] font-medium"
+                        style={{ color: 'var(--text-muted)' }}>
+                        건너뛰기
+                      </button>
                     )}
-                    {s.status === 'reviewing' && (
-                      <>
-                        <button onClick={() => router.push(`/admin/bizplan?scanId=${s.id}&title=${encodeURIComponent(s.title)}`)}
-                          className="px-2.5 py-1 rounded text-[10px] font-semibold"
-                          style={{ background: '#5B8DEF', color: '#fff' }}>
-                          이어서 생성
-                        </button>
-                        <button onClick={() => updateStatus(s.id, 'new')}
-                          className="px-2.5 py-1 rounded text-[10px] font-medium border"
-                          style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
-                          초기화
-                        </button>
-                      </>
+                    {s.status === 'skipped' && (
+                      <button onClick={() => updateStatus(s.id, 'new')}
+                        className="px-2.5 py-1 rounded text-[10px] font-medium border"
+                        style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
+                        복원
+                      </button>
                     )}
                   </div>
                 </div>

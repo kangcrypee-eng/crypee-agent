@@ -4,6 +4,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
+const loadTossV1Script = (): Promise<void> => new Promise((resolve, reject) => {
+  if ((window as any).TossPayments) { resolve(); return }
+  const s = document.createElement('script')
+  s.src = 'https://js.tosspayments.com/v1/payment'
+  s.onload = () => resolve()
+  s.onerror = () => reject(new Error('결제 스크립트 로드 실패'))
+  document.head.appendChild(s)
+})
+
 const FIELDS = [
   { label: '기술', code: '01' }, { label: '인력', code: '02' },
   { label: '수출', code: '03' }, { label: '내수', code: '04' },
@@ -92,7 +101,7 @@ function SetupContent() {
   // 토스 빌링키 등록 (빌링 계약 전: 시뮬레이션 모드)
   const startBillingAuth = async (subscriptionId: string) => {
     if (!user) return
-    const billingReady = false // TODO: 빌링 계약 완료 후 true로 변경
+    const billingReady = true
     if (!billingReady) {
       // 시뮬레이션: 토스 호출 없이 구독 활성화
       const nextBilling = new Date()
@@ -116,12 +125,11 @@ function SetupContent() {
       return
     }
     try {
-      const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk')
-      const tossPayments = await loadTossPayments(clientKey)
-      const payment = tossPayments.payment({ customerKey: user.id })
+      await loadTossV1Script()
+      const tossPayments = (window as any).TossPayments(clientKey)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-      await payment.requestBillingAuth({
-        method: 'CARD',
+      await tossPayments.requestBillingAuth('카드', {
+        customerKey: user.id,
         successUrl: `${appUrl}/api/billing/success?subscriptionId=${subscriptionId}`,
         failUrl: `${appUrl}/api/payment/fail`,
       })
