@@ -122,6 +122,9 @@ export async function GET() {
       })),
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({
+      error: error.message || String(error),
+      stack: error.stack?.split('\n').slice(0, 5),
+    }, { status: 500 })
   }
 }
