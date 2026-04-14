@@ -61,9 +61,29 @@ export async function GET() {
       return false
     })
 
+    // 기간 만료된 기존 항목 삭제 (module_created 제외)
+    const { data: allScans } = await supabaseAdmin
+      .from('bizplan_scans')
+      .select('id, pblanc_id, deadline, status')
+
+    const expiredIds = (allScans || [])
+      .filter(s => {
+        if (s.status === 'module_created') return false
+        if (!s.deadline) return false
+        const parts = s.deadline.split(' ~ ')
+        const endStr = parts[1]?.trim()
+        if (!endStr) return false
+        return new Date(endStr) < now
+      })
+      .map(s => s.id)
+
+    if (expiredIds.length > 0) {
+      await supabaseAdmin.from('bizplan_scans').delete().in('id', expiredIds)
+    }
+
     // 이미 DB에 있는 공고 확인
     const pblancIds = active.map((item: any) => item.pblancId).filter(Boolean)
-    if (pblancIds.length === 0) return NextResponse.json({ total: 0, new: 0, newItems: [] })
+    if (pblancIds.length === 0) return NextResponse.json({ total: 0, new: 0, newItems: [], deleted: expiredIds.length })
 
     const { data: existing } = await supabaseAdmin
       .from('bizplan_scans')
@@ -89,6 +109,7 @@ export async function GET() {
     return NextResponse.json({
       total: active.length,
       new: newItems.length,
+      deleted: expiredIds.length,
       newItems: newItems.map((item: any) => ({
         pblancId: item.pblancId,
         title: item.pblancNm,

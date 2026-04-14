@@ -340,7 +340,7 @@ function ScansTab() {
     try {
       const res = await fetch('/api/admin/bizplan-scan')
       const data = await res.json()
-      setScanResult(`스캔 완료: 전체 ${data.total}건, 신규 ${data.new}건`)
+      setScanResult(`스캔 완료: 전체 ${data.total}건, 신규 ${data.new}건${data.deleted > 0 ? `, 만료 삭제 ${data.deleted}건` : ''}`)
       fetchScans()
     } catch (e: any) { setScanResult('스캔 실패: ' + e.message) }
     setScanning(false)
