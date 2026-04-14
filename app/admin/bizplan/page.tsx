@@ -111,7 +111,7 @@ function BizplanPageInner() {
     const sectionTitles = Array.isArray(p2.sections) ? p2.sections.map((s: any) => s.title).filter(Boolean) : []
 
     const systemPrompt = buildSystemPrompt(analysis)
-    const userPromptTemplate = buildUserPromptTemplate(moduleName, totalPages)
+    const userPromptTemplate = buildUserPromptTemplate(moduleName, totalPages, sectionTitles)
     const additionalInputs = buildAdditionalInputs(p1)
 
     const { error: err } = await supabase.from('modules').insert({
@@ -321,10 +321,14 @@ function buildSystemPrompt(analysis: any): string {
   const p2 = analysis.phase2 || {}
   const st = analysis.structure || {}
   const totalPages = p2.total_pages || 10
+  const sections: any[] = Array.isArray(p2.sections) ? p2.sections : []
+  const evaluations: any[] = Array.isArray(p1.evaluation) ? p1.evaluation : []
+  const requiredTables: any[] = Array.isArray(p2.required_tables) ? p2.required_tables : []
+  const structSections: any[] = Array.isArray(st.sections) ? st.sections : []
 
   let p = `당신은 정부지원사업 사업계획서 작성 전문 컨설턴트입니다. ${p1.program_name || '정부지원사업'} 사업계획서를 작성합니다.\n`
 
-  // 공고 분석
+  // [공고 분석]
   p += `\n[공고 분석 — ${p1.program_name || ''}]\n`
   p += `사업명: ${p1.program_name || ''}\n`
   p += `주관: ${p1.organization || ''}\n`
@@ -337,11 +341,11 @@ function buildSystemPrompt(analysis: any): string {
   }
   if (p1.schedule) p += `접수: ${p1.schedule}\n`
 
-  // 평가항목
-  if (Array.isArray(p1.evaluation) && p1.evaluation.length) {
-    const totalScore = p1.evaluation.reduce((s: number, e: any) => s + (e.score || 0), 0)
+  // [평가항목]
+  if (evaluations.length) {
+    const totalScore = evaluations.reduce((s: number, e: any) => s + (e.score || 0), 0)
     p += `\n[평가항목 — 총 ${totalScore}점]\n`
-    p1.evaluation.forEach((e: any, i: number) => {
+    evaluations.forEach((e: any, i: number) => {
       p += `${i + 1}. ${e.name}: ${e.score}점\n`
       if (Array.isArray(e.criteria) && e.criteria.length) {
         e.criteria.forEach((c: string) => { p += `   - ${c}\n` })
@@ -349,17 +353,17 @@ function buildSystemPrompt(analysis: any): string {
     })
   }
 
-  // 가점
+  // [가점]
   if (Array.isArray(p1.bonus) && p1.bonus.length) {
     p += `\n[가점 항목]\n`
     p1.bonus.forEach((b: any) => { p += `- ${typeof b === 'string' ? b : JSON.stringify(b)}\n` })
   }
 
-  // 양식 가이드
-  if (Array.isArray(p2.sections) && p2.sections.length) {
+  // [양식 가이드]
+  if (sections.length) {
     p += `\n[양식 가이드 — 각 섹션에서 반드시 다뤄야 할 내용]\n`
-    p2.sections.forEach((s: any, i: number) => {
-      const items = Array.isArray(s.required_items) ? s.required_items : []
+    sections.forEach((s: any, i: number) => {
+      const items: string[] = Array.isArray(s.required_items) ? s.required_items : []
       p += `■ ${s.number || (i + 1)}. ${s.title}`
       if (s.page_limit) p += ` (${s.page_limit}p)`
       if (items.length) p += `: ${items.join(', ')}`
@@ -368,92 +372,145 @@ function buildSystemPrompt(analysis: any): string {
     })
   }
 
-  // 출력 형식
-  p += `\n[핵심: 출력 형식]\n`
-  p += `반드시 아래 형식으로 출력하세요.\n\n`
-  p += `1. 표 데이터는 마크다운 표(| |)로 작성\n`
-  p += `2. 본문은 ◦(대항목)와 -(소항목) 형식으로 작성\n`
-  p += `3. ◦는 해당 내용의 핵심 제목 (한 줄, 30자 이내)\n`
-  p += `4. -는 구체적 내용 (수치, 근거, 사례 포함)\n`
-  p += `5. ◦/- 개수는 내용에 따라 자유롭게 (필요한 만큼)\n`
-  p += `6. 기존 사업계획서가 제공되면, 해당 사업의 정보를 기반으로 작성\n`
-  p += `7. 각 섹션 안에서 필요한 경우 마크다운 표도 포함 가능\n`
+  // [출력 구조] — BP001 방식: 각 섹션의 실제 문서 뼈대
+  p += `\n[출력 구조 — 반드시 이 구조 그대로 출력할 것]\n`
+  p += `※ ${totalPages}페이지 이내`
+  if (p2.format) p += ` / 서식: ${p2.format}`
+  p += '\n'
 
-  // 출력 구조 — 섹션별 실제 skeleton
-  if (Array.isArray(p2.sections) && p2.sections.length) {
-    p += `\n[출력 구조]\n`
-    p2.sections.forEach((sec: any, i: number) => {
-      const items = Array.isArray(sec.required_items) ? sec.required_items : []
-      const matched = Array.isArray(st.sections) ? st.sections.find((ss: any) => ss.title === sec.title) : null
-      const secNum = sec.number || (i + 1)
+  const placedTables = new Set<string>()
 
-      p += `\n## ■ ${secNum}. ${sec.title}\n`
+  sections.forEach((sec: any, i: number) => {
+    const items: string[] = Array.isArray(sec.required_items) ? sec.required_items : []
+    const secNum = sec.number || (i + 1)
+    const structSec = structSections.find((ss: any) => ss.title === sec.title)
 
-      // 항목 수가 적고 사실형이면 표로
-      const isFactual = items.length > 0 && items.length <= 6
-      if (isFactual) {
-        p += `\n| 항목 | 내용 |\n|------|------|\n`
+    // 이 섹션과 매칭되는 평가항목 찾기
+    const matchedEvals = evaluations.filter((ev: any) => {
+      const secTitle = (sec.title || '').toLowerCase()
+      const evName = (ev.name || '').toLowerCase()
+      return secTitle.includes(evName.substring(0, 4)) || evName.includes(secTitle.substring(0, 4))
+    })
+
+    p += `\n## ■ ${secNum}. ${sec.title}`
+    if (structSec?.estimated_pages) p += ` — 약 ${structSec.estimated_pages}p`
+    p += '\n'
+
+    // 사실형 헤더 섹션: 항목이 짧은 명사형 (창업아이템명, 산출물 등)
+    const isHeader = items.length > 0 && items.length <= 8
+      && items.every((it: string) => it.length < 25 && !it.includes('분석') && !it.includes('전략'))
+    // 서술형 섹션: 평가항목과 연결되거나 항목이 길고 서술적
+    const isNarrative = matchedEvals.length > 0
+      || items.some((it: string) => it.length >= 25)
+      || items.length === 0
+
+    // 이 섹션에 속하는 필수 표 찾기 (required_items 텍스트에서 표 이름 매칭)
+    const itemsText = items.join(' ')
+    const sectionTables = requiredTables.filter((t: any) => {
+      const tname = typeof t === 'string' ? t : String(t)
+      if (placedTables.has(tname)) return false
+      const tnameShort = tname.replace(/[<>]/g, '').trim().substring(0, 8)
+      return itemsText.includes(tnameShort) || (sec.title || '').includes(tnameShort.substring(0, 4))
+    })
+
+    if (isHeader && !isNarrative) {
+      // 순수 표 섹션 (일반현황, 개요 등)
+      p += '\n| 항목 | 내용 |\n|------|------|\n'
+      items.forEach((item: string) => { p += `| ${item} | (내용) |\n` })
+      p += '\n'
+    } else {
+      // 헤더 표 있으면 먼저 출력
+      if (isHeader && items.length > 0) {
+        p += '\n| 항목 | 내용 |\n|------|------|\n'
         items.forEach((item: string) => { p += `| ${item} | (내용) |\n` })
         p += '\n'
       }
 
-      // 서술형 섹션 (항목이 많거나, 평가항목 연결 섹션이거나, 항목 없음)
-      const hasEvalMatch = (matched?.matched_evaluation?.length ?? 0) > 0
-      if (!isFactual || hasEvalMatch) {
-        p += `◦ (대항목 제목)\n`
-        p += `- (소항목: 구체적 내용, 수치, 근거)\n`
-        p += `- (소항목)\n`
-        p += `◦ (대항목 제목)\n`
-        p += `- (소항목)\n`
-        p += `(필요시 표 추가)\n`
+      // ◦/- 서술형 — 평가항목의 세부기준을 content hint로 활용
+      if (matchedEvals.length > 0) {
+        matchedEvals.forEach((ev: any) => {
+          const criteria: string[] = Array.isArray(ev.criteria) ? ev.criteria : []
+          if (criteria.length >= 2) {
+            p += `◦ (${criteria[0]} — 30자 이내 핵심 제목)\n`
+            p += `- (구체적 현황, 통계 수치, 근거. 100~200자)\n`
+            p += `- (추가 근거, 사례. 100~200자)\n`
+            p += `◦ (${criteria[1]} — 30자 이내 핵심 제목)\n`
+            p += `- (구체적 내용, 수치. 100~200자)\n`
+            if (criteria[2]) p += `- (${criteria[2]}. 100~200자)\n`
+          } else if (criteria.length === 1) {
+            p += `◦ (${criteria[0]} — 30자 이내 핵심 제목)\n`
+            p += `- (구체적 내용, 수치, 근거. 100~200자)\n`
+            p += `- (추가 근거, 사례. 100~200자)\n`
+          } else {
+            p += `◦ (대항목 제목 — 30자 이내)\n`
+            p += `- (구체적 내용, 수치, 근거. 100~200자)\n`
+            p += `- (추가 근거. 100~200자)\n`
+          }
+        })
+      } else {
+        // 평가항목 매칭 없는 서술형
+        p += `◦ (대항목 제목 — 30자 이내)\n`
+        p += `- (구체적 내용, 수치, 근거. 100~200자)\n`
+        p += `- (추가 근거, 사례. 100~200자)\n`
+        p += `◦ (대항목 제목 — 30자 이내)\n`
+        p += `- (구체적 내용. 100~200자)\n`
       }
 
-      if (matched?.focus) p += `[배점 집중: ${matched.focus}]\n`
+      // 이 섹션에 속하는 필수 표 삽입
+      sectionTables.forEach((t: any) => {
+        const tname = typeof t === 'string' ? t : String(t)
+        placedTables.add(tname)
+        p += `\n< ${tname} >\n${makeTableSkeleton(tname)}\n`
+      })
+    }
+
+    if (structSec?.focus) p += `[배점 집중: ${structSec.focus}]\n`
+  })
+
+  // 아직 배치되지 않은 필수 표
+  const remaining = requiredTables.filter((t: any) => !placedTables.has(typeof t === 'string' ? t : String(t)))
+  if (remaining.length > 0) {
+    p += `\n[추가 필수 표]\n`
+    remaining.forEach((t: any) => {
+      const tname = typeof t === 'string' ? t : String(t)
+      p += `\n< ${tname} >\n${makeTableSkeleton(tname)}\n`
     })
   }
 
-  // 필수 표
-  if (Array.isArray(p2.required_tables) && p2.required_tables.length) {
-    p += `\n[필수 포함 표 — 반드시 아래 표를 포함할 것]\n`
-    p2.required_tables.forEach((t: any) => {
-      const name = typeof t === 'string' ? t : JSON.stringify(t)
-      p += `\n< ${name} >\n`
-      p += `${tableTemplate(name)}\n`
-    })
-  }
-
-  // 작성 원칙
+  // [작성 원칙]
   p += `\n[작성 원칙]\n`
-  p += `1. 심사위원이 30초 안에 핵심을 파악할 수 있도록 각 섹션 첫 줄에 핵심 배치\n`
-  p += `2. 정량적 수치 필수 — 시장규모, 매출목표, 고용계획 (추정치는 [확인 필요])\n`
-  p += `3. 기존 사업계획서가 제공되면 그 기업의 정보를 우선 사용하되, 이 양식에 맞게 재구성\n`
-  p += `4. 정보 부족 시 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시\n`
-  p += `5. 개인정보 마스킹: 이름→○○○, 학교→○○대학교\n`
-  p += `6. 평가배점 높은 항목에 분량과 내용을 집중\n`
-  p += `7. 사회적 가치(ESG) 언급 포함\n`
-  p += `8. 한국어로 작성\n`
-  p += `9. ${totalPages}페이지 이내 분량`
-  if (Array.isArray(st.sections) && st.sections.length) {
+  p += `1. 반드시 위 [출력 구조]의 섹션 순서와 형식을 정확히 따를 것\n`
+  p += `2. ◦(대항목)와 -(소항목) 형식 유지 — ◦는 한 줄 30자 이내 핵심 제목, -는 100~200자 구체적 내용\n`
+  p += `3. 심사위원이 30초 안에 핵심을 파악할 수 있도록 각 섹션 첫 줄에 핵심 배치\n`
+  p += `4. 정량적 수치 필수 — 시장규모, 매출목표, 고용계획 (추정치는 [확인 필요])\n`
+  p += `5. 기존 사업계획서가 제공되면 그 기업의 정보를 우선 사용하되, 이 양식에 맞게 재구성\n`
+  p += `6. 정보 부족 시 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시\n`
+  p += `7. 개인정보 마스킹: 이름→○○○, 학교→○○대학교\n`
+  p += `8. 평가배점 높은 항목에 분량과 내용을 집중\n`
+  p += `9. 사회적 가치(ESG) 반드시 포함\n`
+  p += `10. 한국어로 작성\n`
+  p += `11. ${totalPages}페이지 이내`
+  if (structSections.length) {
     p += ` — 섹션별 분량:\n`
-    st.sections.forEach((s: any) => { if (s.title && s.estimated_pages) p += `   - ${s.title}: 약 ${s.estimated_pages}p\n` })
+    structSections.forEach((s: any) => { if (s.title && s.estimated_pages) p += `    - ${s.title}: 약 ${s.estimated_pages}p\n` })
   } else {
     p += '\n'
   }
-  if (p1.etc) p += `10. 공고 특이사항: ${p1.etc}\n`
+  if (p1.etc) p += `12. 공고 특이사항: ${p1.etc}\n`
 
   return p
 }
 
-function tableTemplate(name: string): string {
+function makeTableSkeleton(name: string): string {
   const n = name.toLowerCase()
   if (n.includes('일정') || n.includes('추진')) {
-    return `| 구분 | 추진 내용 | 추진 기간 | 세부 내용 |\n|------|----------|----------|----------|\n| 1 | (내용) | (내용) | (내용) |`
+    return `| 구분 | 추진 내용 | 추진 기간 | 세부 내용 |\n|------|----------|----------|----------|\n| 1 | (내용) | (기간) | (세부) |`
   }
   if (n.includes('사업비') || n.includes('집행') || n.includes('예산')) {
-    return `| 비목 | 산출 근거 | 금액(원) |\n|------|----------|----------|\n| (내용) | (내용) | (내용) |`
+    return `| 비목 | 산출 근거 | 금액(원) |\n|------|----------|----------|\n| 재료비 | (내용) | (금액) |\n| 외주용역비 | (내용) | (금액) |`
   }
   if (n.includes('팀') || n.includes('인력') || n.includes('구성')) {
-    return `| 구분 | 직위 | 담당 업무 | 보유역량 | 구성 상태 |\n|------|------|----------|----------|----------|\n| 1 | (내용) | (내용) | (내용) | (내용) |`
+    return `| 구분 | 직위 | 담당 업무 | 보유역량 | 구성 상태 |\n|------|------|----------|----------|----------|\n| 1 | (직위) | (업무) | (역량) | (상태) |`
   }
   if (n.includes('경쟁') || n.includes('비교')) {
     return `| 구분 | 자사 | 경쟁사A | 경쟁사B |\n|------|------|---------|----------|\n| (항목) | (내용) | (내용) | (내용) |`
@@ -464,11 +521,17 @@ function tableTemplate(name: string): string {
   if (n.includes('협력') || n.includes('파트너')) {
     return `| 구분 | 파트너명 | 보유역량 | 협업방안 | 협력 시기 |\n|------|---------|----------|----------|----------|\n| (내용) | (내용) | (내용) | (내용) | (내용) |`
   }
+  if (n.includes('로드맵') || n.includes('단계')) {
+    return `| 단계 | 기간 | 주요 내용 | 목표 |\n|------|------|----------|------|\n| 1단계 | (기간) | (내용) | (목표) |\n| 2단계 | (기간) | (내용) | (목표) |`
+  }
   return `| 구분 | 내용 | 세부사항 |\n|------|------|----------|\n| (내용) | (내용) | (내용) |`
 }
 
-// BP001 기준 고정 템플릿 — 검증된 구조 그대로 사용
-function buildUserPromptTemplate(programName: string, totalPages: number): string {
+// BP001 기준 고정 템플릿 — 섹션 목록은 공고별로 동적 주입
+function buildUserPromptTemplate(programName: string, totalPages: number, sectionTitles: string[]): string {
+  const sectionList = sectionTitles.length > 0
+    ? sectionTitles.join(', ')
+    : '모든 섹션'
   return `[사업자 정보]
 상호(예정): {{business_name}}
 대표자: {{representative}}
@@ -499,7 +562,7 @@ function buildUserPromptTemplate(programName: string, totalPages: number): strin
 {{budget_plan}}
 
 위 정보를 바탕으로 ${programName} 사업계획서 양식에 맞춰 작성해주세요.
-- 양식의 모든 섹션을 빠짐없이 작성
+- 양식의 모든 섹션(${sectionList})을 빠짐없이 작성
 - ${totalPages}페이지 이내
 - 정보 부족한 부분은 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시`
 }
