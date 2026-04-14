@@ -61,28 +61,16 @@ export async function GET() {
       return false
     })
 
-    // 기간 만료된 기존 항목 삭제 (module_created 제외)
+    // 현재 API에서 유효한 pblancId 목록
+    const activePblancIds = new Set(active.map((item: any) => item.pblancId).filter(Boolean))
+
+    // DB에 있는 항목 중 API에 더 이상 없는 것 = 만료 → 삭제 (module_created 제외)
     const { data: allScans } = await supabaseAdmin
       .from('bizplan_scans')
-      .select('id, pblanc_id, deadline, status')
-
-    const parseDeadlineEnd = (deadline: string): Date | null => {
-      if (!deadline) return null
-      // "2026.01.23 ~ 2026.02.13" or "2026-01-23 ~ 2026-02-13"
-      const parts = deadline.split(' ~ ')
-      const endStr = (parts[1] || parts[0])?.trim().replace(/\./g, '-')
-      if (!endStr) return null
-      const d = new Date(endStr)
-      return isNaN(d.getTime()) ? null : d
-    }
+      .select('id, pblanc_id, status')
 
     const expiredIds = (allScans || [])
-      .filter(s => {
-        if (s.status === 'module_created') return false
-        const end = parseDeadlineEnd(s.deadline)
-        if (!end) return false
-        return end < now
-      })
+      .filter(s => s.status !== 'module_created' && !activePblancIds.has(s.pblanc_id))
       .map(s => s.id)
 
     if (expiredIds.length > 0) {
@@ -90,7 +78,7 @@ export async function GET() {
     }
 
     // 이미 DB에 있는 공고 확인
-    const pblancIds = active.map((item: any) => item.pblancId).filter(Boolean)
+    const pblancIds = [...activePblancIds]
     if (pblancIds.length === 0) return NextResponse.json({ total: 0, new: 0, newItems: [], deleted: expiredIds.length })
 
     const { data: existing } = await supabaseAdmin
