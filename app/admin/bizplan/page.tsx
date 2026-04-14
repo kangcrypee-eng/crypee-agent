@@ -111,7 +111,7 @@ function BizplanPageInner() {
     const sectionTitles = Array.isArray(p2.sections) ? p2.sections.map((s: any) => s.title).filter(Boolean) : []
 
     const systemPrompt = buildSystemPrompt(analysis)
-    const userPromptTemplate = buildUserPromptTemplate(p1, p2, moduleName, totalPages)
+    const userPromptTemplate = buildUserPromptTemplate(moduleName, totalPages)
     const additionalInputs = buildAdditionalInputs(p1)
 
     const { error: err } = await supabase.from('modules').insert({
@@ -405,11 +405,8 @@ function buildSystemPrompt(analysis: any): string {
   return p
 }
 
-function buildUserPromptTemplate(p1: any, p2: any, programName: string, totalPages: number): string {
-  const sectionList = Array.isArray(p2.sections)
-    ? p2.sections.map((s: any) => s.title).filter(Boolean).join(', ')
-    : ''
-
+// BP001 기준 고정 템플릿 — 검증된 구조 그대로 사용
+function buildUserPromptTemplate(programName: string, totalPages: number): string {
   return `[사업자 정보]
 상호(예정): {{business_name}}
 대표자: {{representative}}
@@ -433,37 +430,31 @@ function buildUserPromptTemplate(p1: any, p2: any, programName: string, totalPag
 [강조할 점]
 {{emphasis}}
 
+[신청 분야]
+{{apply_field}}
+
 [예상 사업비 사용 계획]
 {{budget_plan}}
 
 위 정보를 바탕으로 ${programName} 사업계획서 양식에 맞춰 작성해주세요.
-- 양식의 모든 섹션(${sectionList || '전체'})을 빠짐없이 작성
+- 양식의 모든 섹션을 빠짐없이 작성
 - ${totalPages}페이지 이내
 - 정보 부족한 부분은 업종에 맞게 합리적으로 추정하되 [확인 필요] 표시`
 }
 
+// BP001 기준 고정 입력 필드 — 신청 분야만 공고별로 동적 추가
 function buildAdditionalInputs(p1: any): any[] {
-  const inputs: any[] = [
+  const applyOptions: string[] = Array.isArray(p1.eligibility)
+    ? p1.eligibility.map((e: unknown) => typeof e === 'string' ? e : String(e)).filter(Boolean)
+    : []
+
+  return [
     { key: 'idea', label: '사업 아이디어', type: 'textarea', placeholder: '어떤 문제를 해결하고, 어떤 방식으로 해결하는지 상세히 설명해주세요', required: true },
     { key: 'differentiator', label: '핵심 차별점', type: 'textarea', placeholder: '기존 솔루션 대비 기술적/사업적 차별점', required: true },
     { key: 'team', label: '팀 구성 현황', type: 'textarea', placeholder: '대표자 경력, 팀원 역할/역량, 협력기관 (있으면)', required: false },
     { key: 'current_status', label: '현재 진행 상태', type: 'text', placeholder: '예: 아이디어 단계, MVP 개발 중, 시제품 완성', required: false },
-    { key: 'emphasis', label: '강조할 점', type: 'text', placeholder: '예: 특허 보유, 수상 이력, 정부지원 수혜 이력', required: false },
+    { key: 'emphasis', label: '강조할 점', type: 'text', placeholder: '예: 특허 보유, 수상 이력, 가점 해당 항목', required: false },
+    ...(applyOptions.length > 1 ? [{ key: 'apply_field', label: '신청 분야', type: 'select', placeholder: '', required: true, options: applyOptions }] : []),
     { key: 'budget_plan', label: '사업비 사용 계획 (간략)', type: 'textarea', placeholder: '예: 시제품 제작 1500만원, 마케팅 500만원, 인건비 1000만원', required: false },
   ]
-
-  // 신청 분야가 여러 개면 선택 필드 추가
-  if (Array.isArray(p1.eligibility) && p1.eligibility.length > 1) {
-    const options = p1.eligibility.map((e: unknown) => typeof e === 'string' ? e : JSON.stringify(e))
-    inputs.splice(2, 0, {
-      key: 'apply_field',
-      label: '신청 분야',
-      type: 'select',
-      placeholder: '',
-      required: true,
-      options,
-    })
-  }
-
-  return inputs
 }
