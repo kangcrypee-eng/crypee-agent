@@ -23,7 +23,7 @@ function BizplanPageInner() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
 
-  const [scanInfo, setScanInfo] = useState<{ announcement_file_url?: string; template_file_url?: string; template_file_name?: string } | null>(null)
+  const [scanInfo, setScanInfo] = useState<{ url?: string; announcement_file_url?: string; template_file_url?: string; template_file_name?: string } | null>(null)
   const [fetchingFiles, setFetchingFiles] = useState(false)
 
   useEffect(() => { if (!loading && !isAdmin) router.push('/') }, [isAdmin, loading])
@@ -34,7 +34,7 @@ function BizplanPageInner() {
     ;(async () => {
       const { data } = await supabase
         .from('bizplan_scans')
-        .select('announcement_file_url, template_file_url, template_file_name')
+        .select('url, announcement_file_url, template_file_url, template_file_name')
         .eq('id', scanId)
         .single()
 
@@ -170,9 +170,31 @@ function BizplanPageInner() {
         </div>
       )}
 
-      {!fetchingFiles && scanId && scanInfo && !scanInfo.announcement_file_url && !announcement && (
-        <div className="p-3 rounded-xl border mb-4 text-[12px]" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.05)', color: '#ef4444' }}>
-          파일 URL 미확인 — 어드민으로 돌아가 <strong>전체 공고 스캔</strong>을 한 번 더 실행하면 자동 로드됩니다. 또는 직접 업로드해주세요.
+      {!fetchingFiles && scanId && scanInfo && !announcement && (
+        <div className="p-3 rounded-xl border mb-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          {scanInfo.announcement_file_url ? (
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              공고문 자동 다운로드 실패 —
+              <a href={`/api/admin/proxy-file?url=${encodeURIComponent(scanInfo.announcement_file_url)}`}
+                download="공고문.pdf" className="underline ml-1" style={{ color: 'var(--accent)' }}>
+                직접 다운로드
+              </a>
+              후 아래에 업로드해주세요.
+            </p>
+          ) : (
+            <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              공고문 PDF를 직접 업로드해주세요.
+              {scanInfo.url && (
+                <>
+                  {' '}
+                  <a href={scanInfo.url} target="_blank" rel="noopener noreferrer"
+                    className="underline" style={{ color: 'var(--accent)' }}>
+                    공고 페이지 열기 →
+                  </a>
+                </>
+              )}
+            </p>
+          )}
         </div>
       )}
 
