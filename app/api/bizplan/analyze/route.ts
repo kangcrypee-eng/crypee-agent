@@ -97,6 +97,11 @@ export async function POST(request: NextRequest) {
       return Buffer.from(arrayBuffer).toString('utf-8')
     }
 
+    const hwpExts = ['.hwp', '.hwpx']
+    if (hwpExts.some(ext => templateFile.name.toLowerCase().endsWith(ext))) {
+      return NextResponse.json({ error: 'HWP 파일은 지원하지 않습니다. PDF로 변환 후 업로드해주세요.' }, { status: 400 })
+    }
+
     const announcementText = await extractText(announcementFile)
     const templateText = await extractText(templateFile)
 

@@ -251,7 +251,7 @@ function BizplanPageInner() {
             ))}
           </div>
 
-          {analysis.phase2?.sections?.length > 0 && (
+          {Array.isArray(analysis.phase2?.sections) && analysis.phase2.sections.length > 0 && (
             <div className="rounded-xl p-5 mb-3 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <p className="text-[13px] font-semibold mb-2">📝 양식 ({analysis.phase2.total_pages ? analysis.phase2.total_pages + 'p' : '제한없음'})</p>
               {analysis.phase2.sections.map((s: any, i: number) => (
@@ -313,8 +313,8 @@ function buildSystemPrompt(analysis: any): string {
   const p1 = analysis.phase1 || {}; const p2 = analysis.phase2 || {}; const st = analysis.structure || {}
   let p = `당신은 정부지원사업 사업계획서 작성 전문가입니다.\n\n[공고 분석]\n사업명: ${p1.program_name || ''}\n주관: ${p1.organization || ''}\n분야: ${p1.field || ''}\n기간: ${p1.period || ''}\n`
   if (p1.evaluation?.length) { p += '\n[심사항목]\n'; p1.evaluation.forEach((e: any) => { p += `- ${e.name}: ${e.score}점\n`; if (e.criteria?.length) p += `  세부: ${e.criteria.join(', ')}\n` }) }
-  if (p2.sections?.length) { p += `\n[양식 구조 — ${p2.total_pages || '미정'}페이지]\n`; p2.sections.forEach((s: any, i: number) => { p += `${s.number || i + 1}. ${s.title}${s.page_limit ? ` (${s.page_limit}p)` : ''}\n` }) }
-  if (st.sections?.length) { p += '\n[배점 최적화]\n'; st.sections.forEach((s: any) => { p += `- ${s.title}: ${s.estimated_pages}p, ${s.focus || ''}\n` }) }
+  if (Array.isArray(p2.sections) && p2.sections.length) { p += `\n[양식 구조 — ${p2.total_pages || '미정'}페이지]\n`; p2.sections.forEach((s: any, i: number) => { p += `${s.number || i + 1}. ${s.title}${s.page_limit ? ` (${s.page_limit}p)` : ''}\n` }) }
+  if (Array.isArray(st.sections) && st.sections.length) { p += '\n[배점 최적화]\n'; st.sections.forEach((s: any) => { p += `- ${s.title}: ${s.estimated_pages}p, ${s.focus || ''}\n` }) }
   p += `\n[작성 원칙]\n1. 양식 섹션 구조를 정확히 따를 것\n2. 배점 높은 항목에 집중\n3. 정량적 수치 필수 (추정치는 [확인 필요])\n4. 이미지 필요 위치에 [이미지: 설명] 마커\n5. 핵심 문장 **볼드** 강조\n6. 한국어 작성`
   return p
 }
