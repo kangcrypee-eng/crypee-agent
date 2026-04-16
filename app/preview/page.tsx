@@ -29,7 +29,7 @@ function Pv() {
         setM(mod);setFmt(mod.default_format||'pdf')
         if(mod.chain_next?.length)supabase.from('modules').select('id,name,icon').in('id',mod.chain_next).then(({data})=>{if(data)setChains(data)})
         // bizplan 모듈: 결제 전 잠금
-        if(mod.mode==='bizplan'){
+        if(mod.mode==='bizplan'&&(mod.price_krw||0)>0){
           if(purchased){
             setIsLocked(false)
           }else if(user){
@@ -37,9 +37,8 @@ function Pv() {
               setIsLocked(!pays||pays.length===0)
             })
           }
-          // user 없으면 isLocked=true 유지
         }else{
-          setIsLocked(false) // bizplan 아니면 잠금 해제
+          setIsLocked(false)
         }
       }
       // 결과물 로드: gid > DB 최신 > sessionStorage
