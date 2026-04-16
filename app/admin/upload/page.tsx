@@ -153,6 +153,17 @@ function UploadContent() {
     setSaving(false)
     if (error) { showToast('저장 실패: ' + error.message); return }
     showToast(deployStatus === 'active' ? '모듈이 배포되었습니다' : '임시저장 완료')
+
+    // 카피 자동 생성 (백그라운드)
+    const savedId = moduleData.id
+    fetch('/api/admin/generate-promo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc, category, systemPrompt }),
+    }).then(r => r.json()).then(({ copy }) => {
+      if (copy) supabase.from('modules').update({ promo_copy: JSON.stringify(copy) }).eq('id', savedId)
+    }).catch(() => {})
+
     setTimeout(() => router.push('/admin'), 1000)
   }
 

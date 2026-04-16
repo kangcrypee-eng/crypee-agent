@@ -7,6 +7,7 @@ import { MODEL_PRICING } from '@/lib/pricing'
 
 const modeLabel: Record<string, string> = { oneclick: '⚡ 원클릭', form: '📝 폼', chat: '💬 대화', alert: '🔔 알림' }
 const isSeedModule = (id: string) => /^M\d+$/.test(id)
+const tryParsePromoCopy = (raw: string) => { try { return JSON.parse(raw) } catch { return null } }
 const statusLabel: Record<string, string> = { active: '활성', draft: '초안', inactive: '비활성' }
 const statusColor: Record<string, string> = { active: 'var(--accent)', draft: '#EFAA5B', inactive: 'var(--text-muted)' }
 
@@ -25,6 +26,7 @@ export default function AdminPage() {
   const [filter, setFilter] = useState('all')
   const [revPeriod, setRevPeriod] = useState<'week'|'month'|'quarter'|'half'|'year'|'all'>('month')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [expandedCopy, setExpandedCopy] = useState<string | null>(null)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -233,8 +235,9 @@ export default function AdminPage() {
                 ))}
               </tr></thead>
               <tbody>
-                {filtered.map(m=>{const st=moduleStats(m.id);return(
-                  <tr key={m.id} className="border-b hover:opacity-90" style={{borderColor:'var(--border)'}}>
+                {filtered.map(m=>{const st=moduleStats(m.id);const copy=m.promo_copy?tryParsePromoCopy(m.promo_copy):null;return(
+                  <>
+                  <tr key={m.id} className="border-b" style={{borderColor:'var(--border)'}}>
                     <td className="px-4 py-3"><button onClick={()=>toggleStatus(m.id,m.status)} className="flex items-center gap-1.5 text-[12px] hover:opacity-70" style={{color:'var(--text-secondary)'}}><span className="w-2 h-2 rounded-full" style={{background:statusColor[m.status]}}/>{statusLabel[m.status]}</button></td>
                     <td className="px-4 py-3 text-[12px] font-mono" style={{color:'var(--text-muted)'}}>{m.id}</td>
                     <td className="px-4 py-3"><div className="text-[13px] font-medium">{m.icon} {m.name}</div></td>
@@ -246,10 +249,37 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-[13px] font-semibold" style={{color:'var(--accent)'}}>{st.payers}</td>
                     <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={isSeedModule(m.id)?{background:'rgba(91,141,239,0.1)',color:'#5B8DEF'}:{background:'var(--accent-bg)',color:'var(--accent)'}}>{isSeedModule(m.id)?'시드':'어드민'}</span></td>
                     <td className="px-4 py-3"><div className="flex gap-1.5">
+                      {copy&&<button onClick={()=>setExpandedCopy(expandedCopy===m.id?null:m.id)} className="px-2.5 py-1 rounded-md text-[11px] font-medium border hover:opacity-80" style={{background:'rgba(232,216,127,0.1)',borderColor:'rgba(232,216,127,0.3)',color:'#e8d87f'}}>📢 카피</button>}
                       <button onClick={()=>router.push(`/admin/upload?edit=${m.id}`)} className="px-2.5 py-1 rounded-md text-[11px] font-medium border hover:opacity-80" style={{background:'var(--surface-hover)',borderColor:'var(--border)',color:'var(--text-secondary)'}}>{isSeedModule(m.id)?'보기':'수정'}</button>
                       <button onClick={()=>setDeleteTarget(m.id)} className="px-2.5 py-1 border rounded-md text-[11px] font-medium hover:opacity-80" style={{borderColor:'var(--error-border)',color:'var(--error-text)'}}>삭제</button>
                     </div></td>
                   </tr>
+                  {expandedCopy===m.id&&copy&&(
+                    <tr style={{borderColor:'var(--border)'}}>
+                      <td colSpan={11} className="px-4 py-3" style={{background:'var(--surface)'}}>
+                        <div className="flex flex-wrap gap-4 text-[12px]">
+                          <div className="flex-1 min-w-[200px]">
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>메인 카피</p>
+                            <p className="font-bold leading-snug whitespace-pre-line" style={{color:'#e8d87f'}}>{copy.headline}</p>
+                          </div>
+                          <div className="flex-1 min-w-[200px]">
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>서브 카피</p>
+                            <p style={{color:'var(--text-secondary)'}}>{copy.subtext}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>CTA</p>
+                            <p style={{color:'var(--accent)'}}>{copy.cta}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>태그</p>
+                            <p style={{color:'var(--text-muted)'}}>{(copy.tags||[]).join(' ')}</p>
+                          </div>
+                          <button onClick={()=>{const t=`${copy.headline}\n\n${copy.subtext}\n\n${copy.cta}\n\n${(copy.tags||[]).join(' ')}`;navigator.clipboard.writeText(t)}} className="self-start px-3 py-1.5 rounded-md text-[11px] border" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>복사</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </>
                 )})}
               </tbody>
             </table>
