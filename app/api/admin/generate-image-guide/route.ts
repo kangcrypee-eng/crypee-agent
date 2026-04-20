@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const cta = promoCopy?.cta || ''
   const tags = (promoCopy?.tags || []).join(', ')
 
-  const prompt = `아래 AI 모듈의 SNS 광고 이미지 제작 가이드를 작성해주세요.
+  const prompt = `아래 AI 모듈의 SNS 광고 이미지에 들어갈 텍스트를 추천해주세요.
 
 모듈명: ${name}
 설명: ${description || ''}
@@ -24,26 +24,12 @@ CTA: ${cta}
 
 아래 JSON 형식으로만 응답하세요 (설명 없이 JSON만):
 {
-  "concept": "이미지 컨셉 한 줄 설명",
-  "background": {
-    "type": "solid | gradient | photo",
-    "colors": ["#색상코드1", "#색상코드2"],
-    "description": "배경 설명"
-  },
-  "layout": "레이아웃 설명 (텍스트/요소 배치)",
-  "visual_elements": ["시각적 요소1", "시각적 요소2", "시각적 요소3"],
-  "typography": {
-    "headline_style": "헤드라인 폰트 스타일 설명",
-    "font_recommendation": "추천 폰트명"
-  },
-  "color_palette": ["#메인색", "#강조색", "#텍스트색", "#배경색"],
-  "platforms": [
-    {"name": "인스타그램 피드", "size": "1080x1080", "tip": "플랫폼별 주의사항"},
-    {"name": "인스타그램 스토리", "size": "1080x1920", "tip": "플랫폼별 주의사항"},
-    {"name": "카카오 채널", "size": "800x400", "tip": "플랫폼별 주의사항"}
-  ],
-  "do": ["해야 할 것1", "해야 할 것2", "해야 할 것3"],
-  "dont": ["하지 말아야 할 것1", "하지 말아야 할 것2"]
+  "headline": "이미지 메인 텍스트 (2줄 이내, 임팩트 있게, 개행은 \\n으로)",
+  "subheadline": "이미지 서브 텍스트 (1줄, 핵심 혜택)",
+  "badge": "이미지 상단 뱃지 텍스트 (예: 🆕 NEW · AI 자동화 · 창업 필수템, 10자 이내)",
+  "cta_button": "버튼 텍스트 (6자 이내)",
+  "caption": "SNS 게시물 본문 캡션 (2~3줄, 이모지 포함, 해시태그 제외)",
+  "hashtags": ["해시태그1", "해시태그2", "해시태그3", "해시태그4", "해시태그5"]
 }`
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
