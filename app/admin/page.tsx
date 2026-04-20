@@ -27,6 +27,9 @@ export default function AdminPage() {
   const [revPeriod, setRevPeriod] = useState<'week'|'month'|'quarter'|'half'|'year'|'all'>('month')
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [expandedCopy, setExpandedCopy] = useState<string | null>(null)
+  const [expandedGuide, setExpandedGuide] = useState<string | null>(null)
+  const [imageGuides, setImageGuides] = useState<Record<string, any>>({})
+  const [generatingGuide, setGeneratingGuide] = useState<string | null>(null)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -50,6 +53,25 @@ export default function AdminPage() {
   }
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+
+  const generateImageGuide = async (m: any) => {
+    setGeneratingGuide(m.id)
+    const copy = m.promo_copy ? tryParsePromoCopy(m.promo_copy) : null
+    try {
+      const res = await fetch('/api/admin/generate-image-guide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: m.name, description: m.description, category: m.category, promoCopy: copy }),
+      })
+      const { guide } = await res.json()
+      if (guide) {
+        setImageGuides(prev => ({ ...prev, [m.id]: guide }))
+        setExpandedGuide(m.id)
+        setExpandedCopy(null)
+      }
+    } catch {}
+    setGeneratingGuide(null)
+  }
   const toggleStatus = async (id: string, current: string) => {
     const next = current === 'active' ? 'inactive' : 'active'
     await supabase.from('modules').update({ status: next, updated_at: new Date().toISOString() }).eq('id', id)
@@ -250,6 +272,7 @@ export default function AdminPage() {
                     <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={isSeedModule(m.id)?{background:'rgba(91,141,239,0.1)',color:'#5B8DEF'}:{background:'var(--accent-bg)',color:'var(--accent)'}}>{isSeedModule(m.id)?'시드':'어드민'}</span></td>
                     <td className="px-4 py-3"><div className="flex gap-1.5">
                       {copy&&<button onClick={()=>setExpandedCopy(expandedCopy===m.id?null:m.id)} className="px-2.5 py-1 rounded-md text-[11px] font-medium border hover:opacity-80" style={{background:'rgba(232,216,127,0.1)',borderColor:'rgba(232,216,127,0.3)',color:'#e8d87f'}}>📢 카피</button>}
+                      <button onClick={()=>{ if(imageGuides[m.id]){setExpandedGuide(expandedGuide===m.id?null:m.id);setExpandedCopy(null)}else{generateImageGuide(m)} }} disabled={generatingGuide===m.id} className="px-2.5 py-1 rounded-md text-[11px] font-medium border hover:opacity-80 disabled:opacity-50" style={{background:'rgba(91,141,239,0.1)',borderColor:'rgba(91,141,239,0.3)',color:'#5B8DEF'}}>{generatingGuide===m.id?'생성중...':'🖼️ 이미지'}</button>
                       <button onClick={()=>router.push(`/admin/upload?edit=${m.id}`)} className="px-2.5 py-1 rounded-md text-[11px] font-medium border hover:opacity-80" style={{background:'var(--surface-hover)',borderColor:'var(--border)',color:'var(--text-secondary)'}}>{isSeedModule(m.id)?'보기':'수정'}</button>
                       <button onClick={()=>setDeleteTarget(m.id)} className="px-2.5 py-1 border rounded-md text-[11px] font-medium hover:opacity-80" style={{borderColor:'var(--error-border)',color:'var(--error-text)'}}>삭제</button>
                     </div></td>
@@ -279,6 +302,56 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   )}
+                  {expandedGuide===m.id&&imageGuides[m.id]&&(()=>{const g=imageGuides[m.id];return(
+                    <tr style={{borderColor:'var(--border)'}}>
+                      <td colSpan={11} className="px-4 py-4" style={{background:'rgba(91,141,239,0.04)'}}>
+                        <div className="text-[11px] font-semibold mb-3" style={{color:'#5B8DEF'}}>🖼️ SNS 광고 이미지 가이드 — {m.name}</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {/* 컨셉 + 배경 */}
+                          <div className="p-3 rounded-lg border" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold mb-1.5" style={{color:'var(--text-muted)'}}>컨셉</p>
+                            <p className="text-[12px] mb-2" style={{color:'var(--text)'}}>{g.concept}</p>
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>배경</p>
+                            <p className="text-[11px]" style={{color:'var(--text-secondary)'}}>{g.background?.description}</p>
+                            <div className="flex gap-1.5 mt-1.5">{(g.background?.colors||[]).map((c:string)=><div key={c} title={c} className="w-6 h-6 rounded border" style={{background:c,borderColor:'var(--border)'}}/>)}</div>
+                          </div>
+                          {/* 컬러 팔레트 + 타이포 */}
+                          <div className="p-3 rounded-lg border" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold mb-1.5" style={{color:'var(--text-muted)'}}>컬러 팔레트</p>
+                            <div className="flex gap-1.5 mb-2">{(g.color_palette||[]).map((c:string)=><div key={c} title={c} className="w-7 h-7 rounded border flex-shrink-0" style={{background:c,borderColor:'var(--border)'}}/>)}</div>
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--text-muted)'}}>폰트</p>
+                            <p className="text-[11px] font-semibold" style={{color:'var(--accent)'}}>{g.typography?.font_recommendation}</p>
+                            <p className="text-[11px] mt-0.5" style={{color:'var(--text-secondary)'}}>{g.typography?.headline_style}</p>
+                          </div>
+                          {/* 비주얼 요소 */}
+                          <div className="p-3 rounded-lg border" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold mb-1.5" style={{color:'var(--text-muted)'}}>비주얼 요소</p>
+                            <ul className="space-y-1">{(g.visual_elements||[]).map((v:string,i:number)=><li key={i} className="text-[11px] flex gap-1.5" style={{color:'var(--text-secondary)'}}><span style={{color:'#5B8DEF'}}>·</span>{v}</li>)}</ul>
+                            <p className="text-[10px] font-semibold mt-2 mb-1" style={{color:'var(--text-muted)'}}>레이아웃</p>
+                            <p className="text-[11px]" style={{color:'var(--text-secondary)'}}>{g.layout}</p>
+                          </div>
+                          {/* 플랫폼 스펙 */}
+                          <div className="p-3 rounded-lg border" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold mb-1.5" style={{color:'var(--text-muted)'}}>플랫폼별 스펙</p>
+                            <div className="space-y-1.5">{(g.platforms||[]).map((p:any)=><div key={p.name}><span className="text-[11px] font-semibold" style={{color:'var(--text)'}}>{p.name}</span><span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded font-mono" style={{background:'var(--surface-hover)',color:'var(--text-muted)'}}>{p.size}</span><p className="text-[10px] mt-0.5" style={{color:'var(--text-muted)'}}>{p.tip}</p></div>)}</div>
+                          </div>
+                          {/* DO / DON'T */}
+                          <div className="p-3 rounded-lg border" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold mb-1.5" style={{color:'#4ade80'}}>✅ DO</p>
+                            <ul className="space-y-1 mb-2">{(g.do||[]).map((d:string,i:number)=><li key={i} className="text-[11px]" style={{color:'var(--text-secondary)'}}>· {d}</li>)}</ul>
+                            <p className="text-[10px] font-semibold mb-1" style={{color:'var(--error-text)'}}>❌ DON'T</p>
+                            <ul className="space-y-1">{(g.dont||[]).map((d:string,i:number)=><li key={i} className="text-[11px]" style={{color:'var(--text-secondary)'}}>· {d}</li>)}</ul>
+                          </div>
+                          {/* 복사 버튼 */}
+                          <div className="p-3 rounded-lg border flex flex-col gap-2" style={{borderColor:'var(--border)',background:'var(--surface)'}}>
+                            <p className="text-[10px] font-semibold" style={{color:'var(--text-muted)'}}>내보내기</p>
+                            <button onClick={()=>{const t=`[${m.name} SNS 이미지 가이드]\n\n컨셉: ${g.concept}\n배경: ${g.background?.description}\n컬러: ${(g.color_palette||[]).join(', ')}\n폰트: ${g.typography?.font_recommendation}\n레이아웃: ${g.layout}\n\n비주얼 요소:\n${(g.visual_elements||[]).map((v:string)=>'· '+v).join('\n')}\n\n플랫폼 스펙:\n${(g.platforms||[]).map((p:any)=>`· ${p.name} (${p.size}): ${p.tip}`).join('\n')}\n\nDO:\n${(g.do||[]).map((d:string)=>'· '+d).join('\n')}\n\nDON'T:\n${(g.dont||[]).map((d:string)=>'· '+d).join('\n')}`;navigator.clipboard.writeText(t);showToast('클립보드 복사 완료')}} className="px-3 py-1.5 rounded-md text-[11px] border text-center" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>📋 전체 복사</button>
+                            <button onClick={()=>generateImageGuide(m)} disabled={generatingGuide===m.id} className="px-3 py-1.5 rounded-md text-[11px] border text-center disabled:opacity-50" style={{borderColor:'rgba(91,141,239,0.3)',color:'#5B8DEF'}}>🔄 재생성</button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )})()}
                   </>
                 )})}
               </tbody>
