@@ -58,7 +58,7 @@ export default function MarketPage() {
       {/* 모듈 상세 모달 */}
       {selected&&<div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={()=>{setSelected(null);setShowSample(false)}}>
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"/>
-        <div className="relative rounded-xl w-full max-w-[560px] max-h-[85vh] overflow-y-auto border" style={{background:'var(--surface)',borderColor:'var(--border)'}} onClick={e=>e.stopPropagation()}>
+        <div className="relative rounded-xl w-full max-w-[560px] max-h-[92vh] overflow-y-auto border" style={{background:'var(--surface)',borderColor:'var(--border)'}} onClick={e=>e.stopPropagation()}>
           <div className="p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-11 h-11 rounded-lg flex items-center justify-center text-2xl flex-shrink-0" style={{background:modeBg(selected.mode)}}>{selected.icon||'📄'}</div>
@@ -136,7 +136,7 @@ export default function MarketPage() {
                 </div>
               ):selected.sample_output?(
                 <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
-                  <div className="p-5 max-h-[250px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:selected.id?.startsWith('BP')?renderBp(selected.sample_output):'<p>'+render(selected.sample_output)+'</p>'}}/>
+                  <div className="p-5 max-h-[480px] overflow-y-auto text-[12.5px] leading-[1.7]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:selected.id?.startsWith('BP')?renderBp(selected.sample_output):'<p>'+render(selected.sample_output)+'</p>'}}/>
                 </div>
               ):(selected.mode==='alert'||selected.output_mode==='automation')?(
                 <div className="rounded-lg overflow-hidden border p-3" style={{borderColor:'var(--border-strong)',background:'#F5F5F5'}}>
