@@ -83,7 +83,24 @@ export default function MarketPage() {
             {/* 미리보기 (바로 표시) */}
             <div className="mb-4">
               <p className="text-[12px] font-semibold mb-2" style={{color:'var(--text-secondary)'}}>미리보기</p>
-              {selected.id?.startsWith('BLOG')?(
+              {selected.id==='MODOO001'?(
+                <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
+                  <div className="p-5 max-h-[480px] overflow-y-auto text-[12px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}}>
+                    <div className="text-[13px] font-bold mb-3" style={{color:'#333'}}>예시 출력물</div>
+                    <div style={{color:'#555',fontSize:'12px'}}>
+                      <p className="font-semibold mb-1" style={{color:'#333'}}>## Q2. 아이디어를 떠올린 배경 이야기를 들려주세요.</p>
+                      <p className="mb-3">저는 소규모 창업을 준비하면서 정부 지원사업 공고를 찾는 데 예상보다 훨씬 많은 시간을 써야 한다는 것을 깨달았습니다. 창업진흥원, 중소기업진흥공단, 각 지자체 홈페이지를 따로따로 들어가서 공고를 확인하고, 자격 조건이 맞는지 하나씩 읽어봐야 했습니다. 어느 날 딱 제 조건에 맞는 지원사업 마감일을 하루 놓쳤을 때, 이 과정을 AI가 대신해 줄 수 있다면 얼마나 좋을까 생각했습니다. 그것이 이 서비스를 시작한 계기입니다.</p>
+                      <p className="font-semibold mb-1" style={{color:'#333'}}>## Q3. 아이디어는 누구의 어떤 문제를 해결해주나요?</p>
+                      <p className="mb-3">주요 대상은 정부 지원사업의 존재는 알지만 공고를 찾고 자격을 확인하는 과정이 번거로워 포기하는 예비창업자와 소규모 사업자입니다. 기존 알림 서비스들은 개인 조건을 반영하지 않아 무관한 공고가 쏟아지는 문제가 있었습니다. 저희 서비스는 사용자 프로필을 기반으로 AI가 적합한 공고만 선별하고, 신청서 초안 작성까지 보조하여 지원 성공률을 높입니다.</p>
+                      <p className="font-semibold mb-1" style={{color:'#333'}}>## Q4. 아이디어를 어떻게 실현하고 싶으신가요?</p>
+                      <p className="mb-3">모두의 창업 프로그램의 지원금으로 공고 수집 파이프라인과 AI 매칭 알고리즘을 고도화할 계획입니다. 멘토링을 통해 실제 창업자들이 어떤 부분에서 가장 큰 어려움을 겪는지 현장 의견을 듣고 싶습니다. 최종 목표는 국내 창업자 누구나 지원사업 기회를 놓치지 않도록 돕는 AI 플랫폼을 완성하는 것입니다.</p>
+                      <p className="font-semibold mb-1" style={{color:'#333'}}>## 📷 첨부 사진 추천 (최대 5장)</p>
+                      <p>사진 1 — 서비스 화면 스크린샷 · 사진 2 — 아이디어 메모/화이트보드 · 사진 3 — 복잡한 공고 목록 캡처 · 사진 4 — 창업 행사/멘토 상담 · 사진 5 — 타겟 고객 모습</p>
+                    </div>
+                    <div className="mt-3 p-2.5 rounded-lg text-[11px]" style={{background:'#f0f7ff',color:'#2b7de9'}}>✅ 생성 후 ₩990 결제 시 전체 열람 · 편집 · 다운로드</div>
+                  </div>
+                </div>
+              ):selected.id?.startsWith('BLOG')?(
                 <div className="rounded-lg overflow-hidden border" style={{borderColor:'var(--border-strong)'}}>
                   <div className="p-5" style={{background:'var(--preview-bg)'}}>
                     {selected.id==='BLOG01'?(
