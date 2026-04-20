@@ -225,6 +225,23 @@ p{margin:6px 0}
     }
   }
   // 양식 HTML 템플릿 기반 렌더링
+  // 마크다운 본문 → HTML (표+불릿+텍스트) — BP001 섹션 내부 및 비BP 모듈에서 공용
+  const bodyToHtml=(body:string)=>{
+    let h=body
+    h=h.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
+    h=h.replace(/^# (.+)$/gm,'<div style="font-size:16px;font-weight:800;margin:20px 0 8px;color:#1E293B">$1</div>')
+    h=h.replace(/^## (.+)$/gm,'<div style="font-size:14px;font-weight:700;margin:16px 0 6px;padding:6px 0;border-bottom:2px solid #E2E8F0;color:#1E293B">$1</div>')
+    h=h.replace(/^### (.+)$/gm,'<div style="font-size:13px;font-weight:700;color:#1E293B;margin:14px 0 6px;padding:4px 0;border-bottom:1px solid #E2E8F0">$1</div>')
+    h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    h=h.replace(/^◦\s*(.+)$/gm,'<div style="margin:10px 0 3px 0;padding:6px 10px;background:#F8FAFC;border-left:3px solid #2563EB;font-weight:600;font-size:12px;color:#1E293B;line-height:1.6">◦ $1</div>')
+    h=h.replace(/^- (.+)$/gm,'<div style="margin:1px 0 1px 20px;padding:2px 0;color:#374151;font-size:12px;line-height:1.65">- $1</div>')
+    h=h.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 4px;border-radius:2px;font-size:10px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
+    h=h.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:11px;font-weight:600;color:#64748B;margin:10px 0 4px">&lt; $1 &gt;</div>')
+    h=h.replace(/\n\n/g,'</p><p style="margin-bottom:6px">')
+    h=h.replace(/\n/g,'<br>')
+    return h
+  }
+
   const render=(t:string)=>{
     // AI 마크다운에서 섹션 추출
     const getSection=(start:string,end:string|null)=>{
@@ -237,21 +254,6 @@ p{margin:6px 0}
     const tv=(key:string)=>{
       const m=t.match(new RegExp(key+'[^|]*\\|\\s*([^|\\n]+)','i'))
       return m?.[1]?.replace(/\*\*/g,'').trim()||''
-    }
-    // 마크다운 본문 → HTML (표+불릿+텍스트)
-    const bodyToHtml=(body:string)=>{
-      let h=body
-      // 표 변환
-      h=h.replace(/(\|.+\|\n)+/g,(block)=>mdTableToHtml(block,false))
-      h=h.replace(/^### (.+)$/gm,'<div style="font-size:13px;font-weight:700;color:#1E293B;margin:14px 0 6px;padding:4px 0;border-bottom:1px solid #E2E8F0">$1</div>')
-      h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-      h=h.replace(/^◦\s*(.+)$/gm,'<div style="margin:10px 0 3px 0;padding:6px 10px;background:#F8FAFC;border-left:3px solid #2563EB;font-weight:600;font-size:12px;color:#1E293B;line-height:1.6">◦ $1</div>')
-      h=h.replace(/^- (.+)$/gm,'<div style="margin:1px 0 1px 20px;padding:2px 0;color:#374151;font-size:12px;line-height:1.65">- $1</div>')
-      h=h.replace(/\[확인 필요\]/g,'<span style="background:#FFF3CD;color:#856404;padding:1px 4px;border-radius:2px;font-size:10px;font-weight:600;border:1px solid #FFEEBA">📝 확인 필요</span>')
-      h=h.replace(/&lt;\s*(.+?)\s*&gt;/g,'<div style="text-align:center;font-size:11px;font-weight:600;color:#64748B;margin:10px 0 4px">&lt; $1 &gt;</div>')
-      h=h.replace(/\n\n/g,'</p><p style="margin-bottom:6px">')
-      h=h.replace(/\n/g,'<br>')
-      return h
     }
 
     const S='style'
@@ -346,7 +348,7 @@ ${bodyToHtml(sec4)}
         {editing?<textarea ref={textareaRef} value={editText} onChange={e=>{setEditText(e.target.value);if(textareaRef.current){textareaRef.current.style.height='auto';textareaRef.current.style.height=textareaRef.current.scrollHeight+'px'}}} className="w-full min-h-[320px] sm:min-h-[480px] p-7 text-[13.5px] leading-[1.8] font-mono resize-none outline-none" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} spellCheck={false}/>
         :isLocked?(
           <div className="relative">
-            <div className="p-7 text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)',maxHeight:'500px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result.substring(0,3000))+'</p>'}}/>
+            <div className="p-7 text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)',maxHeight:'500px',overflow:'hidden'}} dangerouslySetInnerHTML={{__html:'<p>'+(m.id?.startsWith('BP')?render(result.substring(0,3000)):bodyToHtml(result.substring(0,3000)))+'</p>'}}/>
             <div className="absolute bottom-0 left-0 right-0 h-[200px]" style={{background:'linear-gradient(transparent, var(--preview-bg) 70%)'}}/>
             <div className="absolute bottom-0 left-0 right-0 p-8 text-center">
               <p className="text-[14px] font-semibold mb-2" style={{color:'var(--preview-text)'}}>전체 결과물을 확인하세요</p>
@@ -357,7 +359,7 @@ ${bodyToHtml(sec4)}
             </div>
           </div>
         )
-        :<div className="p-7 min-h-[320px] sm:min-h-[480px] text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+render(result)+'</p>'}}/>}
+        :<div className="p-7 min-h-[320px] sm:min-h-[480px] text-[13.5px] leading-[1.8]" style={{background:'var(--preview-bg)',color:'var(--preview-text)'}} dangerouslySetInnerHTML={{__html:'<p>'+(m.id?.startsWith('BP')?render(result):bodyToHtml(result))+'</p>'}}/>}
         <div className="px-4 py-3 border-t" style={{borderColor:'var(--border)',background:'var(--surface-hover)'}}>
           <p className="text-[11px] leading-relaxed" style={{color:'var(--text-muted)'}}>⚠️ 본 문서는 AI가 자동 생성한 초안이며, <strong style={{color:'var(--text-secondary)'}}>모든 내용은 반드시 검토가 필요합니다.</strong> 수치, 통계, 사업비 등은 실제 데이터로 확인·수정 후 제출하세요. [확인 필요] 표시 항목은 반드시 보완이 필요합니다.</p>
         </div>
