@@ -131,9 +131,10 @@ function Pv() {
         await supabase.from('generations').update({output_text:data.result,regen_count:regenCount+1,input_tokens:data.usage?.input_tokens,output_tokens:data.usage?.output_tokens,generation_time_ms:data.usage?.generation_time_ms}).eq('id',genId)
       }
 
-      // 유료 재생성인 경우 결제 기록
+      // 유료 재생성인 경우 결제 기록 + uses 증가
       if(!isFree&&(m.price_krw||0)>0){
         await supabase.from('payments').insert({user_id:user.id,module_id:m.id,order_id:`regen-${user.id.substring(0,8)}-${Date.now()}`,amount:m.price_krw,status:'paid',paid_at:new Date().toISOString()})
+        await supabase.from('modules').update({uses:(m.uses||0)+1}).eq('id',m.id)
       }
 
       setResult(data.result);sessionStorage.setItem('lastResult',data.result)
