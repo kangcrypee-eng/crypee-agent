@@ -66,7 +66,10 @@ export default function BlogWritePage() {
           fd.append('userId', user.id)
           fd.append('postId', tempPostId)
           const res = await fetch('/api/blog/upload-photo', { method: 'POST', body: fd })
-          if (!res.ok) throw new Error('사진 업로드 실패')
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+            throw new Error('사진 업로드 실패: ' + (err.error || res.status))
+          }
           return res.json()
         })
       )
