@@ -55,13 +55,20 @@ export default function AdminPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
 
+  const getAuthHeader = async () => {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    return token ? { 'Authorization': `Bearer ${token}` } : {}
+  }
+
   const generateImageGuide = async (m: any) => {
     setGeneratingGuide(m.id)
     const copy = m.promo_copy ? tryParsePromoCopy(m.promo_copy) : null
     try {
+      const authHeader = await getAuthHeader()
       const res = await fetch('/api/admin/generate-image-guide', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeader },
         body: JSON.stringify({ name: m.name, description: m.description, category: m.category, promoCopy: copy }),
       })
       const { guide } = await res.json()
@@ -479,7 +486,8 @@ function ScansTab() {
   const handleScan = async () => {
     setScanning(true); setScanResult('')
     try {
-      const res = await fetch('/api/admin/bizplan-scan')
+      const authHeader = await getAuthHeader()
+      const res = await fetch('/api/admin/bizplan-scan', { headers: authHeader })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setScanResult(`스캔 완료: 전체 ${data.total}건, 신규 ${data.new}건${data.deleted > 0 ? `, 만료 삭제 ${data.deleted}건` : ''}`)

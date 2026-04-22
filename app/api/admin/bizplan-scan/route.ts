@@ -18,6 +18,10 @@ const parseEnd = (str: string): Date | null => {
 }
 
 export async function GET(request: NextRequest) {
+  const { verifyAdmin } = await import('@/lib/admin-auth')
+  const auth = await verifyAdmin(request)
+  if ('error' in auth) return auth.error
+
   const bizinfoKey = process.env.BIZINFO_API_KEY
   if (!bizinfoKey) return NextResponse.json({ error: 'BIZINFO_API_KEY 미설정' }, { status: 500 })
 

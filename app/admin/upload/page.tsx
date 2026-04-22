@@ -156,13 +156,16 @@ function UploadContent() {
 
     // 카피 자동 생성 (백그라운드)
     const savedId = moduleData.id
-    fetch('/api/admin/generate-promo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description: desc, category, systemPrompt }),
-    }).then(r => r.json()).then(({ copy }) => {
-      if (copy) supabase.from('modules').update({ promo_copy: JSON.stringify(copy) }).eq('id', savedId)
-    }).catch(() => {})
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token
+      fetch('/api/admin/generate-promo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ name, description: desc, category, systemPrompt }),
+      }).then(r => r.json()).then(({ copy }) => {
+        if (copy) supabase.from('modules').update({ promo_copy: JSON.stringify(copy) }).eq('id', savedId)
+      }).catch(() => {})
+    })
 
     setTimeout(() => router.push('/admin'), 1000)
   }

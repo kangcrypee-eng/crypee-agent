@@ -20,6 +20,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '필수 항목 누락' }, { status: 400 })
     }
 
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+    for (const file of files) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return NextResponse.json({ error: `이미지 파일만 업로드 가능합니다: ${file.name}` }, { status: 400 })
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        return NextResponse.json({ error: `파일 크기는 20MB 이하여야 합니다: ${file.name}` }, { status: 400 })
+      }
+    }
+
     const results = []
     for (const file of files) {
       try {

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdmin } from '@/lib/admin-auth'
 
 export async function POST(request: NextRequest) {
+  const auth = await verifyAdmin(request)
+  if ('error' in auth) return auth.error
+
   const { name, description, category, promoCopy } = await request.json()
   if (!name) return NextResponse.json({ error: '필수값 누락' }, { status: 400 })
 
