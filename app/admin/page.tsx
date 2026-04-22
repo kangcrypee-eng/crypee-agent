@@ -17,7 +17,8 @@ const MODEL_COST: Record<string, number> = { 'claude-haiku-4-5': 0.01, 'claude-s
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'dashboard' | 'modules' | 'subscribers' | 'requests' | 'scans'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'modules' | 'govAlert' | 'requests'>('dashboard')
+  const [govAlertSubTab, setGovAlertSubTab] = useState<'subscribers' | 'scans'>('subscribers')
   const [modules, setModules] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [generations, setGenerations] = useState<any[]>([])
@@ -135,7 +136,7 @@ export default function AdminPage() {
 
       {/* 탭 */}
       <div className="flex gap-1 mb-5">
-        {([['dashboard','대시보드'],['modules','모듈 관리'],['subscribers','구독자'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`],['scans','공고 스캔']] as const).map(([k,l])=>(
+        {([['dashboard','대시보드'],['modules','모듈 관리'],['govAlert','🔔 정부지원 알림'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`]] as const).map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all" style={tab===k?{background:'var(--accent-bg)',color:'var(--accent)'}:{color:'var(--text-muted)'}}>{l}</button>
         ))}
       </div>
@@ -343,50 +344,68 @@ export default function AdminPage() {
         </div>
       </>}
 
-      {/* ===== 구독자 관리 탭 ===== */}
-      {tab==='subscribers'&&<>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
-          {[
-            ['전체 구독자',subscribers.length+'명',''],
-            ['활성',subscribers.filter(s=>s.is_active).length+'명','var(--accent)'],
-            ['해지/실패',subscribers.filter(s=>!s.is_active).length+'명','var(--error-text)'],
-          ].map(([label,value,color])=>(
-            <div key={label as string} className="rounded-xl p-4 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-              <div className="text-[10.5px] uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{label}</div>
-              <div className="text-2xl font-extrabold mt-1" style={{color:(color as string)||'var(--text)'}}>{value}</div>
-            </div>
-          ))}
-        </div>
-        {subscribers.length===0?<div className="rounded-xl p-12 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-[13px]" style={{color:'var(--text-muted)'}}>아직 구독자가 없습니다</p></div>
-        :<div className="rounded-xl overflow-hidden border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead><tr className="border-b" style={{borderColor:'var(--border)'}}>
-                {['상태','이메일','사업자명','필터','결제','가입일','마지막 발송'].map(h=>(
-                  <th key={h} className="px-4 py-3 text-[10.5px] font-semibold text-left uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{h}</th>
-                ))}
-              </tr></thead>
-              <tbody>
-                {subscribers.map(s=>{
-                  const p=s.profiles as any
-                  const filters=s.filters||{}
-                  const filterText=[...(filters.fields||[]),...(filters.regions||[]),filters.keyword].filter(Boolean).join(', ')||'전체'
-                  return(
-                    <tr key={s.id} className="border-b" style={{borderColor:'var(--border)'}}>
-                      <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={s.is_active?{background:'var(--accent-bg)',color:'var(--accent)'}:{background:'var(--error-bg)',color:'var(--error-text)'}}>{s.is_active?'활성':s.billing_status==='cancelled'?'해지':'실패'}</span></td>
-                      <td className="px-4 py-3 text-[12px]">{s.phone}</td>
-                      <td className="px-4 py-3 text-[12px]" style={{color:'var(--text-secondary)'}}>{p?.business_name||p?.representative||'-'}</td>
-                      <td className="px-4 py-3 text-[11px] max-w-[200px] truncate" style={{color:'var(--text-muted)'}}>{filterText}</td>
-                      <td className="px-4 py-3 text-[11px]" style={{color:s.billing_status==='active'?'var(--accent)':'var(--text-muted)'}}>{s.billing_status==='active'?'₩990/월':s.billing_status||'없음'}</td>
-                      <td className="px-4 py-3 text-[11px]" style={{color:'var(--text-muted)'}}>{s.created_at?new Date(s.created_at).toLocaleDateString('ko'):'-'}</td>
-                      <td className="px-4 py-3 text-[11px]" style={{color:'var(--text-muted)'}}>{s.last_sent_at?new Date(s.last_sent_at).toLocaleDateString('ko'):'-'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      {/* ===== 정부지원 알림 탭 ===== */}
+      {tab==='govAlert'&&<>
+        <div className="mb-4">
+          <p className="text-[12px] mb-3" style={{color:'var(--text-muted)'}}>정부지원사업 알림 서비스 관리</p>
+          <div className="flex gap-1">
+            {(['subscribers','scans'] as const).map(k=>(
+              <button key={k} onClick={()=>setGovAlertSubTab(k)}
+                className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all"
+                style={govAlertSubTab===k?{background:'var(--accent-bg)',color:'var(--accent)'}:{color:'var(--text-muted)'}}>
+                {k==='subscribers'?`구독자 (${subscribers.length}명)`:'공고 스캔'}
+              </button>
+            ))}
           </div>
-        </div>}
+        </div>
+
+        {govAlertSubTab==='subscribers'&&<>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-5">
+            {[
+              ['전체 구독자',subscribers.length+'명',''],
+              ['활성',subscribers.filter(s=>s.is_active).length+'명','var(--accent)'],
+              ['해지/실패',subscribers.filter(s=>!s.is_active).length+'명','var(--error-text)'],
+            ].map(([label,value,color])=>(
+              <div key={label as string} className="rounded-xl p-4 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+                <div className="text-[10.5px] uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{label}</div>
+                <div className="text-2xl font-extrabold mt-1" style={{color:(color as string)||'var(--text)'}}>{value}</div>
+              </div>
+            ))}
+          </div>
+          {subscribers.length===0
+            ?<div className="rounded-xl p-12 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-[13px]" style={{color:'var(--text-muted)'}}>아직 구독자가 없습니다</p></div>
+            :<div className="rounded-xl overflow-hidden border" style={{background:'var(--surface)',borderColor:'var(--border)'}}>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead><tr className="border-b" style={{borderColor:'var(--border)'}}>
+                    {['상태','이메일','사업자명','필터','결제','가입일','마지막 발송'].map(h=>(
+                      <th key={h} className="px-4 py-3 text-[10.5px] font-semibold text-left uppercase tracking-wider" style={{color:'var(--text-muted)'}}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>
+                    {subscribers.map(s=>{
+                      const p=s.profiles as any
+                      const filters=s.filters||{}
+                      const filterText=[...(filters.fields||[]),...(filters.regions||[]),filters.keyword].filter(Boolean).join(', ')||'전체'
+                      return(
+                        <tr key={s.id} className="border-b" style={{borderColor:'var(--border)'}}>
+                          <td className="px-4 py-3"><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={s.is_active?{background:'var(--accent-bg)',color:'var(--accent)'}:{background:'var(--error-bg)',color:'var(--error-text)'}}>{s.is_active?'활성':s.billing_status==='cancelled'?'해지':'실패'}</span></td>
+                          <td className="px-4 py-3 text-[12px]">{p?.email||s.email||'-'}</td>
+                          <td className="px-4 py-3 text-[12px]" style={{color:'var(--text-secondary)'}}>{p?.business_name||p?.representative||'-'}</td>
+                          <td className="px-4 py-3 text-[11px] max-w-[200px] truncate" style={{color:'var(--text-muted)'}}>{filterText}</td>
+                          <td className="px-4 py-3 text-[11px]" style={{color:s.billing_status==='active'?'var(--accent)':'var(--text-muted)'}}>{s.billing_status==='active'?'₩990/월':s.billing_status||'없음'}</td>
+                          <td className="px-4 py-3 text-[11px]" style={{color:'var(--text-muted)'}}>{s.created_at?new Date(s.created_at).toLocaleDateString('ko'):'-'}</td>
+                          <td className="px-4 py-3 text-[11px]" style={{color:'var(--text-muted)'}}>{s.last_sent_at?new Date(s.last_sent_at).toLocaleDateString('ko'):'-'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>}
+        </>}
+
+        {govAlertSubTab==='scans'&&<ScansTab />}
       </>}
 
       {/* ===== 모듈 문의 탭 ===== */}
@@ -420,8 +439,6 @@ export default function AdminPage() {
         </div>}
       </>}
 
-      {/* 공고 스캔 탭 */}
-      {tab==='scans'&&<ScansTab />}
 
       {/* 삭제 모달 */}
       {deleteTarget&&<div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={()=>setDeleteTarget(null)}>
