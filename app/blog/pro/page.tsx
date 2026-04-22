@@ -123,13 +123,18 @@ function BlogProPage() {
     try {
       for (const [cat, files] of Object.entries(categoryPhotos)) {
         if (!files.length) continue
-        const fd = new FormData()
-        fd.append('userId', user.id)
-        fd.append('subscriptionId', '')
-        for (const f of files) fd.append('files', f)
-        const res = await fetch('/api/blog/pro/upload-photos', { method: 'POST', body: fd })
-        const data = await res.json()
-        uploadedByCategory[cat] = data.photos || []
+        const catPhotos: { id: string; cdnUrl: string }[] = []
+        for (const f of files) {
+          const fd = new FormData()
+          fd.append('userId', user.id)
+          fd.append('subscriptionId', '')
+          fd.append('files', f)
+          const res = await fetch('/api/blog/pro/upload-photos', { method: 'POST', body: fd })
+          if (!res.ok) throw new Error('사진 업로드 실패')
+          const data = await res.json()
+          if (data.photos?.length) catPhotos.push(...data.photos)
+        }
+        uploadedByCategory[cat] = catPhotos
       }
 
       for (const [cat, photos] of Object.entries(uploadedByCategory)) {
