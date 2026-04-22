@@ -50,11 +50,42 @@ function BlogProPage() {
   const neededPhotos = postCount * photosPerPost
   const selectedPlan = PLANS.find(p => p.value === postCount)!
 
+  const compressImage = (file: File): Promise<File> => new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const maxW = 860
+      const ratio = Math.min(maxW / img.width, maxW / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(objectUrl)
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          if (blob.size > 1024 * 1024 && quality > 0.4) {
+            tryCompress(Math.round((quality - 0.1) * 10) / 10)
+            return
+          }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+        }, 'image/jpeg', quality)
+      }
+      tryCompress(0.8)
+    }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file) }
+    img.src = objectUrl
+  })
+
   const addPhotos = (category: string, files: FileList | null) => {
     if (!files) return
+    const MAX_SIZE = 20 * 1024 * 1024
+    const valid = Array.from(files).filter(f => f.size <= MAX_SIZE)
+    const rejected = Array.from(files).length - valid.length
+    if (rejected > 0) setError(`${rejected}개 파일이 너무 큽니다 (최대 20MB)`)
     setCategoryPhotos(prev => ({
       ...prev,
-      [category]: [...(prev[category] || []), ...Array.from(files)],
+      [category]: [...(prev[category] || []), ...valid],
     }))
   }
 
@@ -125,10 +156,11 @@ function BlogProPage() {
         if (!files.length) continue
         const catPhotos: { id: string; cdnUrl: string }[] = []
         for (const f of files) {
+          const compressed = await compressImage(f)
           const fd = new FormData()
           fd.append('userId', user.id)
           fd.append('subscriptionId', '')
-          fd.append('files', f)
+          fd.append('files', compressed)
           const res = await fetch('/api/blog/pro/upload-photos', { method: 'POST', body: fd })
           if (!res.ok) throw new Error('사진 업로드 실패')
           const data = await res.json()
@@ -243,7 +275,8 @@ function BlogProPage() {
       {step === 2 && !generating && !uploading && !done && (
         <div className="flex flex-col gap-4">
           <h2 className="text-[16px] font-bold" style={{ color: 'var(--text)' }}>매장 정보</h2>
-          <input className="inp" placeholder={`매장명 (예: ${ex.shopName}) *`} value={shopName} onChange={e => setShopName(e.target.value)} />
+          <input className="inp" placeholder={`매장명 (예: ${ex.shopName}) *`} value={shopName} onChange={e => setShopName(e.target.value)}
+            style={error && !shopName ? { borderColor: '#ef4444' } : undefined} />
           <input className="inp" placeholder="연락처" value={shopPhone} onChange={e => setShopPhone(e.target.value)} />
           <input className="inp" placeholder="주소" value={shopAddress} onChange={e => setShopAddress(e.target.value)} />
           <input className="inp" placeholder="예약 링크" value={shopLink} onChange={e => setShopLink(e.target.value)} />

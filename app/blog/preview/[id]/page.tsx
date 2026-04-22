@@ -167,7 +167,13 @@ export default function BlogPreviewPage() {
         </div>
 
         {/* 글 내용 */}
-        <div ref={contentRef} className="px-6 py-6">
+        <div
+          ref={contentRef}
+          className="px-6 py-6"
+          style={!isPaid ? { userSelect: 'none', WebkitUserSelect: 'none' } as React.CSSProperties : undefined}
+          onCopy={!isPaid ? (e) => e.preventDefault() : undefined}
+          onContextMenu={!isPaid ? (e) => e.preventDefault() : undefined}
+        >
           <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#333', marginBottom: '24px', lineHeight: 1.4 }}>
             {post.generated_title}
           </h1>
@@ -188,7 +194,7 @@ export default function BlogPreviewPage() {
 
         {/* 결제 전: 블러 오버레이 */}
         {!isPaid && (
-          <div className="absolute inset-0 top-[52px] flex items-end justify-center" style={{ background: 'linear-gradient(transparent 30%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.98) 70%)' }}>
+          <div className="absolute inset-0 top-[52px] flex items-end justify-center" style={{ background: 'linear-gradient(transparent 55%, rgba(255,255,255,0.85) 72%, rgba(255,255,255,0.98) 85%)' }}>
             <div className="text-center pb-10">
               <p className="text-[14px] font-semibold mb-2" style={{ color: 'var(--text)' }}>전체 내용을 확인하려면 결제해주세요</p>
               <p className="text-[12px] mb-4" style={{ color: 'var(--text-muted)' }}>글 + 이미지 복사, 이메일 전송 포함</p>

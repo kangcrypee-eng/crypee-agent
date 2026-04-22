@@ -23,10 +23,46 @@ export default function BlogWritePage() {
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([])
   const [step, setStep] = useState<'idle' | 'uploading' | 'analyzing' | 'writing' | 'done' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+
+  const compressImage = (file: File): Promise<File> => new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      const maxW = 860
+      const ratio = Math.min(maxW / img.width, maxW / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(objectUrl)
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          if (blob.size > 1024 * 1024 && quality > 0.4) {
+            tryCompress(Math.round((quality - 0.1) * 10) / 10)
+            return
+          }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }))
+        }, 'image/jpeg', quality)
+      }
+      tryCompress(0.8)
+    }
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file) }
+    img.src = objectUrl
+  })
 
   const addPhotos = useCallback((files: FileList | null) => {
     if (!files) return
-    const newPhotos = Array.from(files).slice(0, 5 - photos.length).map(file => ({
+    const MAX_SIZE = 20 * 1024 * 1024
+    const valid = Array.from(files).filter(f => {
+      if (f.size > MAX_SIZE) {
+        setErrorMsg(`"${f.name}" 파일이 너무 큽니다 (최대 20MB)`)
+        return false
+      }
+      return true
+    })
+    const newPhotos = valid.slice(0, 5 - photos.length).map(file => ({
       file,
       preview: URL.createObjectURL(file),
     }))
@@ -42,6 +78,7 @@ export default function BlogWritePage() {
 
   const handleSubmit = async () => {
     if (!user) { router.push('/login'); return }
+    setSubmitted(true)
     if (!businessType || !shopName || !topic || !briefContent) {
       setErrorMsg('업종, 매장명, 주제, 내용을 모두 입력해주세요')
       return
@@ -58,11 +95,12 @@ export default function BlogWritePage() {
       // 1단계: 임시 postId 생성 (UUID)
       const tempPostId = crypto.randomUUID()
 
-      // 2단계: 사진 업로드 (병렬)
+      // 2단계: 사진 업로드 (압축 후 순차 전송)
       const uploadResults = await Promise.all(
         photos.map(async (p) => {
+          const compressed = await compressImage(p.file)
           const fd = new FormData()
-          fd.append('file', p.file)
+          fd.append('file', compressed)
           fd.append('userId', user.id)
           fd.append('postId', tempPostId)
           const res = await fetch('/api/blog/upload-photo', { method: 'POST', body: fd })
@@ -134,8 +172,10 @@ export default function BlogWritePage() {
       <div className="flex flex-col gap-5">
         {/* 업종 선택 */}
         <div>
-          <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>업종</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="block text-[13px] font-semibold mb-2" style={{ color: submitted && !businessType ? '#ef4444' : 'var(--text-secondary)' }}>
+            업종 <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+          <div className="grid grid-cols-3 gap-2" style={submitted && !businessType ? { padding: '8px', border: '2px solid #ef4444', borderRadius: '12px' } : undefined}>
             {BUSINESS_TYPES.map(bt => (
               <button
                 key={bt.value}
@@ -188,6 +228,7 @@ export default function BlogWritePage() {
               value={shopName}
               onChange={e => setShopName(e.target.value)}
               maxLength={50}
+              style={submitted && !shopName ? { borderColor: '#ef4444' } : undefined}
             />
             <input
               className="inp"
@@ -216,13 +257,16 @@ export default function BlogWritePage() {
 
         {/* 주제 */}
         <div>
-          <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>주제</label>
+          <label className="block text-[13px] font-semibold mb-2" style={{ color: submitted && !topic ? '#ef4444' : 'var(--text-secondary)' }}>
+            주제 <span style={{ color: '#ef4444' }}>*</span>
+          </label>
           <input
             className="inp"
             placeholder={`예: ${ex.topic}`}
             value={topic}
             onChange={e => setTopic(e.target.value)}
             maxLength={100}
+            style={submitted && !topic ? { borderColor: '#ef4444' } : undefined}
           />
         </div>
 
@@ -251,7 +295,9 @@ export default function BlogWritePage() {
 
         {/* 짧은 내용 */}
         <div>
-          <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>짧은 내용</label>
+          <label className="block text-[13px] font-semibold mb-2" style={{ color: submitted && !briefContent ? '#ef4444' : 'var(--text-secondary)' }}>
+            짧은 내용 <span style={{ color: '#ef4444' }}>*</span>
+          </label>
           <textarea
             className="inp"
             rows={3}
@@ -259,17 +305,19 @@ export default function BlogWritePage() {
             value={briefContent}
             onChange={e => setBriefContent(e.target.value)}
             maxLength={500}
-            style={{ resize: 'none' }}
+            style={{ resize: 'none', ...(submitted && !briefContent ? { borderColor: '#ef4444' } : {}) }}
           />
           <div className="text-right text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{briefContent.length}/500</div>
         </div>
 
         {/* 사진 업로드 */}
         <div>
-          <label className="block text-[13px] font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>사진 (1~5장)</label>
+          <label className="block text-[13px] font-semibold mb-2" style={{ color: submitted && photos.length === 0 ? '#ef4444' : 'var(--text-secondary)' }}>
+            사진 (1~5장) <span style={{ color: '#ef4444' }}>*</span>
+          </label>
           <div
             className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all hover:opacity-80"
-            style={{ borderColor: 'var(--border-strong)', background: 'var(--surface)' }}
+            style={{ borderColor: submitted && photos.length === 0 ? '#ef4444' : 'var(--border-strong)', background: 'var(--surface)' }}
             onClick={() => fileRef.current?.click()}
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); addPhotos(e.dataTransfer.files) }}
