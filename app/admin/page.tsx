@@ -39,18 +39,15 @@ export default function AdminPage() {
   }, [isAdmin, loading])
 
   const fetchAll = async () => {
-    const [mods, pays, gens, subs, reqs] = await Promise.all([
-      supabase.from('modules').select('*').order('category').order('uses', { ascending: false }),
-      supabase.from('payments').select('*').eq('status', 'paid'),
-      supabase.from('generations').select('id, module_id, user_id, created_at'),
-      supabase.from('alert_subscriptions').select('*, profiles:user_id(email, business_name, representative)'),
-      supabase.from('module_requests').select('*').order('created_at', { ascending: false }),
-    ])
-    if (mods.data) setModules(mods.data)
-    if (pays.data) setPayments(pays.data)
-    if (gens.data) setGenerations(gens.data)
-    if (subs.data) setSubscribers(subs.data)
-    if (reqs.data) setRequests(reqs.data)
+    const authHeader = await getAuthHeader()
+    const res = await fetch('/api/admin/data', { headers: authHeader })
+    if (!res.ok) return
+    const data = await res.json()
+    setModules(data.modules || [])
+    setPayments(data.payments || [])
+    setGenerations(data.generations || [])
+    setSubscribers(data.subscribers || [])
+    setRequests(data.requests || [])
   }
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
@@ -482,6 +479,12 @@ function ScansTab() {
   }
 
   useEffect(() => { fetchScans() }, [])
+
+  const getAuthHeader = async () => {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    return token ? { 'Authorization': `Bearer ${token}` } : {}
+  }
 
   const handleScan = async () => {
     setScanning(true); setScanResult('')
