@@ -64,6 +64,7 @@ function SetupContent() {
   const handleSave = async () => {
     if (!user) return
     if (!email.trim()) { setMsg('이메일을 입력해주세요'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setMsg('올바른 이메일 형식이 아닙니다'); return }
     setSaving(true)
     setMsg('')
 

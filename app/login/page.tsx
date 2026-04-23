@@ -16,6 +16,17 @@ function Content() {
 
   useEffect(() => { if (user) router.replace('/market') }, [user])
 
+  const toKoreanError = (msg: string) => {
+    if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) return '이메일 또는 비밀번호가 올바르지 않습니다'
+    if (msg.includes('Email not confirmed')) return '이메일 인증이 필요합니다. 받은 메일함을 확인해주세요.'
+    if (msg.includes('User already registered')) return '이미 가입된 이메일입니다'
+    if (msg.includes('Password should be at least') || msg.includes('password')) return '비밀번호는 6자 이상이어야 합니다'
+    if (msg.includes('Unable to validate email') || msg.includes('invalid format') || msg.includes('valid email')) return '올바른 이메일 형식이 아닙니다'
+    if (msg.includes('rate limit') || msg.includes('Too many')) return '요청이 너무 많습니다. 잠시 후 다시 시도해주세요'
+    if (msg.includes('Email link is invalid') || msg.includes('expired')) return '링크가 만료되었습니다. 다시 시도해주세요'
+    return '오류가 발생했습니다. 다시 시도해주세요'
+  }
+
   const submit = async () => {
     setError('')
     if (!email.trim()) { setError('이메일을 입력해주세요'); return }
@@ -27,7 +38,7 @@ function Content() {
           email: email.trim(), password: pw,
           options: { data: { email: email.trim() } }
         })
-        if (e) { setError(e.message === 'User already registered' ? '이미 가입된 이메일입니다' : e.message); setLoading(false); return }
+        if (e) { setError(toKoreanError(e.message)); setLoading(false); return }
         if (data.user) {
           const { data: existing } = await supabase.from('profiles').select('id').eq('id', data.user.id).single()
           if (!existing) await supabase.from('profiles').insert({ id: data.user.id, email: email.trim(), credits: 0, role: 'user' })
@@ -40,15 +51,10 @@ function Content() {
         }
       } else {
         const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
-        if (e) {
-          if (e.message === 'Invalid login credentials') setError('이메일 또는 비밀번호가 올바르지 않습니다')
-          else if (e.message === 'Email not confirmed') setError('이메일 인증이 필요합니다. 받은 메일함을 확인해주세요.')
-          else setError(e.message)
-          setLoading(false); return
-        }
+        if (e) { setError(toKoreanError(e.message)); setLoading(false); return }
         await refresh(); router.push('/market')
       }
-    } catch (e: any) { setError(e.message || '오류가 발생했습니다') }
+    } catch (e: any) { setError('오류가 발생했습니다. 다시 시도해주세요') }
     setLoading(false)
   }
 

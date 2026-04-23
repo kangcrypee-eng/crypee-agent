@@ -15,9 +15,11 @@ export default function RequestPage() {
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
   const handleSubmit = async () => {
-    if (!category || !title || !desc) return
+    setSubmitted(true)
+    if (!category || !title.trim() || desc.trim().length < 10) return
     if (!user && !email) return
     setSending(true)
     const { error } = await supabase.from('module_requests').insert({
@@ -67,13 +69,17 @@ export default function RequestPage() {
         </div>
 
         <div>
-          <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>모듈 제목 *</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 청년창업사관학교 사업계획서" className="w-full px-3.5 py-2.5 rounded-lg border text-[13px] outline-none" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+          <label className="block text-[12px] font-medium mb-1.5" style={{ color: submitted && !title.trim() ? '#ef4444' : 'var(--text-secondary)' }}>모듈 제목 *</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 청년창업사관학교 사업계획서" className="w-full px-3.5 py-2.5 rounded-lg border text-[13px] outline-none" style={{ background: 'var(--surface)', borderColor: submitted && !title.trim() ? '#ef4444' : 'var(--border)', color: 'var(--text)' }} />
         </div>
 
         <div>
-          <label className="block text-[12px] font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>상세 설명 *</label>
-          <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="어떤 기능이 필요한지 자세히 설명해주세요.&#10;&#10;예: 청년창업사관학교 공고에 맞는 사업계획서를 AI가 자동 작성해주는 모듈이 필요합니다. 평가항목이 예비창업패키지와 다르고..." rows={5} className="w-full px-3.5 py-2.5 rounded-lg border text-[13px] outline-none resize-none leading-relaxed" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--text)' }} />
+          <label className="block text-[12px] font-medium mb-1.5" style={{ color: submitted && desc.trim().length < 10 ? '#ef4444' : 'var(--text-secondary)' }}>상세 설명 * <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(최소 10자)</span></label>
+          <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="어떤 기능이 필요한지 자세히 설명해주세요.&#10;&#10;예: 청년창업사관학교 공고에 맞는 사업계획서를 AI가 자동 작성해주는 모듈이 필요합니다. 평가항목이 예비창업패키지와 다르고..." rows={5} className="w-full px-3.5 py-2.5 rounded-lg border text-[13px] outline-none resize-none leading-relaxed" style={{ background: 'var(--surface)', borderColor: submitted && desc.trim().length < 10 ? '#ef4444' : 'var(--border)', color: 'var(--text)' }} />
+          <div className="flex justify-between mt-1">
+            {submitted && desc.trim().length < 10 && <span className="text-[11px]" style={{ color: '#ef4444' }}>최소 10자 이상 입력해주세요</span>}
+            <span className="text-[11px] ml-auto" style={{ color: 'var(--text-muted)' }}>{desc.length}자</span>
+          </div>
         </div>
 
         {!user && (
@@ -83,7 +89,7 @@ export default function RequestPage() {
           </div>
         )}
 
-        <button onClick={handleSubmit} disabled={sending || !category || !title || !desc || (!user && !email)}
+        <button onClick={handleSubmit} disabled={sending || (!user && !email)}
           className="w-full py-3 font-semibold text-[14px] rounded-lg disabled:opacity-40 hover:opacity-90 transition-all"
           style={{ background: 'var(--accent)', color: 'var(--bg)' }}>
           {sending ? '제출 중...' : '문의 제출하기'}
