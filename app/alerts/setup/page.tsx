@@ -88,6 +88,7 @@ function SetupContent() {
         const { data, error } = await supabase.from('alert_subscriptions').insert({
           user_id: user.id, module_type: 'gov_support', filters: filterData,
           schedule_type: 'daily', schedule_hour: 9, phone: email.trim(),
+          is_active: false, billing_status: 'none',
         }).select('id').single()
         if (error) throw error
         await startBillingAuth(data.id)
