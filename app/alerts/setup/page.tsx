@@ -43,7 +43,7 @@ function SetupContent() {
   const [existing, setExisting] = useState<any>(null)
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return }
+    if (!user) { router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)); return }
     supabase.from('alert_subscriptions').select('*').eq('user_id', user.id).eq('module_type', 'gov_support').single().then(({ data }) => {
       if (data) {
         setExisting(data)

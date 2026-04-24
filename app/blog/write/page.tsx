@@ -119,7 +119,7 @@ export default function BlogWritePage() {
   }
 
   const handleSubmit = async () => {
-    if (!user) { router.push('/login'); return }
+    if (!user) { router.push('/login?redirect=/blog/write'); return }
     if (photos.length === 0) { setErrorMsg('사진을 최소 1장 업로드해주세요'); return }
 
     setErrorMsg('')

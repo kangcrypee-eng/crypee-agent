@@ -13,8 +13,9 @@ function Content() {
   const [isSignUp, setIsSignUp] = useState(params.get('signup')==='1')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const redirectTo = params.get('redirect') || '/market'
 
-  useEffect(() => { if (user) router.replace('/market') }, [user])
+  useEffect(() => { if (user) router.replace(redirectTo) }, [user])
 
   const toKoreanError = (msg: string) => {
     if (msg.includes('Invalid login credentials') || msg.includes('Invalid email or password')) return '이메일 또는 비밀번호가 올바르지 않습니다'
@@ -43,16 +44,16 @@ function Content() {
           const { data: existing } = await supabase.from('profiles').select('id').eq('id', data.user.id).single()
           if (!existing) await supabase.from('profiles').insert({ id: data.user.id, email: email.trim(), credits: 0, role: 'user' })
         }
-        if (data.session) { await refresh(); router.push('/market') }
+        if (data.session) { await refresh(); router.push(redirectTo) }
         else {
           const { error: signInErr } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
           if (signInErr) { setError('가입 완료! 이메일 확인 후 로그인해주세요.'); setIsSignUp(false); setLoading(false); return }
-          await refresh(); router.push('/market')
+          await refresh(); router.push(redirectTo)
         }
       } else {
         const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pw })
         if (e) { setError(toKoreanError(e.message)); setLoading(false); return }
-        await refresh(); router.push('/market')
+        await refresh(); router.push(redirectTo)
       }
     } catch (e: any) { setError('오류가 발생했습니다. 다시 시도해주세요') }
     setLoading(false)
