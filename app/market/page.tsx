@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { categories } from '@/lib/modules'
 
@@ -31,11 +31,13 @@ const renderBp=(t:string)=>{
 </div>`
 }
 
-export default function MarketPage() {
+function MarketContent() {
   const [cat,setCat]=useState('전체');const [search,setSearch]=useState('');const [mods,setMods]=useState<any[]>([]);const [loading,setLoading]=useState(true);const router=useRouter()
   const [selected,setSelected]=useState<any>(null);const [showSample,setShowSample]=useState(false)
+  const params=useSearchParams()
 
-  useEffect(()=>{supabase.from('modules').select('*').eq('status','active').order('uses',{ascending:false}).then(({data})=>{if(data)setMods(data);setLoading(false)})},[])
+  useEffect(()=>{supabase.from('modules').select('*').eq('status','active').order('uses',{ascending:false}).then(({data})=>{if(data){setMods(data);const moduleId=params.get('module');if(moduleId){const target=data.find((m:any)=>m.id===moduleId);if(target)setSelected(target)}};setLoading(false)})},[])
+
   const list=mods.filter(m=>{if(cat!=='전체'&&m.category!==cat)return false;if(search&&!m.name.includes(search)&&!(m.description||'').includes(search))return false;return true})
 
   const modeStyle=(mode:string)=>({background:`var(--mode-${mode}-bg)`,color:`var(--mode-${mode}-text)`,borderColor:`var(--mode-${mode}-border)`})
@@ -185,3 +187,5 @@ export default function MarketPage() {
     </div>
   )
 }
+
+export default function MarketPage() { return <Suspense><MarketContent /></Suspense> }
