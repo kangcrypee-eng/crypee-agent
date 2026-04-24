@@ -43,7 +43,7 @@ function SetupContent() {
   const [existing, setExisting] = useState<any>(null)
 
   useEffect(() => {
-    if (!user) { router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)); return }
+    if (!user) return
     supabase.from('alert_subscriptions').select('*').eq('user_id', user.id).eq('module_type', 'gov_support').single().then(({ data }) => {
       if (data) {
         setExisting(data)
@@ -62,7 +62,7 @@ function SetupContent() {
 
   // 필터 저장 (프론트에서 직접 supabase 호출 — RLS 통과)
   const handleSave = async () => {
-    if (!user) return
+    if (!user) { router.push('/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search)); return }
     if (!email.trim()) { setMsg('이메일을 입력해주세요'); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setMsg('올바른 이메일 형식이 아닙니다'); return }
     setSaving(true)

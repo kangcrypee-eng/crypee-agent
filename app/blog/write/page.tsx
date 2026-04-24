@@ -183,7 +183,7 @@ export default function BlogWritePage() {
     }
   }
 
-  if (loading) return <div className="flex justify-center py-20"><div className="spinner" /></div>
+  // loading 중에도 페이지 표시 (비로그인 유저 접근 허용)
 
   const ex = BUSINESS_EXAMPLES[businessType] || BUSINESS_EXAMPLES.other
   const isGenerating = genStep === 'uploading' || genStep === 'analyzing' || genStep === 'writing'
