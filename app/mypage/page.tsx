@@ -5,10 +5,13 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 
 export default function MyPage() {
-  const {user,loading}=useAuth(); const router=useRouter()
+  const {user,loading,refresh}=useAuth(); const router=useRouter()
   const [tab,setTab]=useState<'results'|'payments'>('results')
   const [gens,setGens]=useState<any[]>([])
   const [payments,setPayments]=useState<any[]>([])
+  const [showWithdraw,setShowWithdraw]=useState(false)
+  const [withdrawing,setWithdrawing]=useState(false)
+  const [withdrawError,setWithdrawError]=useState('')
 
   useEffect(()=>{
     if(!loading&&!user)router.push('/login')
@@ -17,6 +20,22 @@ export default function MyPage() {
       supabase.from('payments').select('*, modules:module_id(name, icon)').eq('user_id',user.id).eq('status','paid').order('paid_at',{ascending:false}).limit(50).then(({data})=>{if(data)setPayments(data)})
     }
   },[user,loading])
+
+  const handleWithdraw = async () => {
+    setWithdrawing(true)
+    setWithdrawError('')
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) { setWithdrawError('인증 오류. 다시 로그인 후 시도해주세요'); setWithdrawing(false); return }
+    const res = await fetch('/api/user/withdraw', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const result = await res.json()
+    if (!res.ok) { setWithdrawError(result.error || '탈퇴 처리 실패'); setWithdrawing(false); return }
+    await supabase.auth.signOut()
+    router.push('/?withdrawn=1')
+  }
 
   if(loading)return<div className="pt-20 text-center" style={{color:'var(--text-muted)'}}>로딩 중...</div>
   if(!user)return null
@@ -30,7 +49,10 @@ export default function MyPage() {
     <div className="pt-6 pb-16 animate-in">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div><h2 className="text-xl font-bold">마이페이지</h2><p className="text-xs" style={{color:'var(--text-muted)'}}>{user.business_name||user.email}</p></div>
-        <button onClick={()=>router.push('/profile')} className="px-3 py-2 rounded-md text-xs border" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>프로필 수정</button>
+        <div className="flex gap-2">
+          <button onClick={()=>router.push('/profile')} className="px-3 py-2 rounded-md text-xs border" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>프로필 수정</button>
+          <button onClick={()=>setShowWithdraw(true)} className="px-3 py-2 rounded-md text-xs border" style={{borderColor:'var(--error-border)',color:'var(--error-text)'}}>회원 탈퇴</button>
+        </div>
       </div>
 
       {/* 탭 */}
@@ -48,6 +70,22 @@ export default function MyPage() {
         {payments.length===0?<div className="rounded-xl p-12 text-center border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><p className="text-2xl mb-2">💳</p><p className="text-[13px]" style={{color:'var(--text-muted)'}}>결제 내역이 없습니다</p></div>
         :<div className="space-y-2">{payments.map(p=><div key={p.id} className="rounded-xl p-4 flex items-center gap-3 border" style={{background:'var(--surface)',borderColor:'var(--border)'}}><div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{background:'var(--surface-hover)'}}>{p.modules?.icon||'💳'}</div><div className="flex-1"><div className="font-semibold text-[13px]">{p.modules?.name||p.module_id}</div><div className="text-[11px] mt-0.5" style={{color:'var(--text-muted)'}}>{new Date(p.paid_at).toLocaleDateString('ko')} · ₩{(p.amount||0).toLocaleString()}</div></div><span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={{background:'var(--accent-bg)',color:'var(--accent)'}}>{p.status==='paid'?'결제완료':p.status==='refunded'?'환불됨':p.status}</span></div>)}</div>}
       </>}
+      {showWithdraw&&(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={()=>setShowWithdraw(false)}>
+          <div className="rounded-xl p-6 border max-w-[380px] w-full mx-4" style={{background:'var(--surface)',borderColor:'var(--border)'}} onClick={e=>e.stopPropagation()}>
+            <h3 className="text-[16px] font-bold mb-2">회원 탈퇴</h3>
+            <p className="text-[13px] mb-1" style={{color:'var(--text-secondary)'}}>정말 탈퇴하시겠습니까?</p>
+            <p className="text-[12px] mb-4" style={{color:'var(--error-text)',opacity:0.8}}>계정과 모든 데이터가 영구 삭제되며 복구할 수 없습니다.</p>
+            {withdrawError&&<p className="text-[12px] mb-3 p-2 rounded-lg" style={{background:'var(--error-bg)',color:'var(--error-text)'}}>{withdrawError}</p>}
+            <div className="flex gap-2 justify-end">
+              <button onClick={()=>{setShowWithdraw(false);setWithdrawError('')}} className="px-4 py-2 border rounded-lg text-[13px] hover:opacity-80" style={{borderColor:'var(--border-strong)',color:'var(--text-secondary)'}}>취소</button>
+              <button onClick={handleWithdraw} disabled={withdrawing} className="px-4 py-2 rounded-lg text-[13px] font-semibold disabled:opacity-50" style={{background:'var(--error-text)',color:'white'}}>
+                {withdrawing?'처리 중...':'탈퇴하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
