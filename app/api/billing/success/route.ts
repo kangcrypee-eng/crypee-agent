@@ -91,5 +91,9 @@ export async function GET(request: NextRequest) {
     is_active: true,
   }).eq('id', subscriptionId)
 
+  // 모듈 사용 횟수 증가
+  const { data: mod } = await supabase.from('modules').select('uses').eq('id', 'M100').single()
+  await supabase.from('modules').update({ uses: (mod?.uses || 0) + 1 }).eq('id', 'M100')
+
   return NextResponse.redirect(`${appUrl}/alerts?subscribed=true`)
 }
