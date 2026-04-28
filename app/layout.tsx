@@ -30,7 +30,10 @@ export const metadata: Metadata = {
     apple: '/apple-touch-icon.png',
   },
   verification: {
-    google: '', // 구글 서치 콘솔 인증 코드 (나중에 추가)
+    google: '',
+    other: {
+      'naver-site-verification': '', // 네이버 서치어드바이저 인증 코드 (등록 후 입력)
+    },
   },
 }
 
