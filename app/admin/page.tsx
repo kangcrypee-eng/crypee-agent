@@ -17,7 +17,7 @@ const MODEL_COST: Record<string, number> = { 'claude-haiku-4-5': 0.01, 'claude-s
 export default function AdminPage() {
   const { user, isAdmin, loading } = useAuth()
   const router = useRouter()
-  const [tab, setTab] = useState<'dashboard' | 'modules' | 'govAlert' | 'requests'>('dashboard')
+  const [tab, setTab] = useState<'dashboard' | 'modules' | 'govAlert' | 'requests' | 'users'>('dashboard')
   const [govAlertSubTab, setGovAlertSubTab] = useState<'subscribers' | 'scans'>('subscribers')
   const [modules, setModules] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
@@ -139,8 +139,8 @@ export default function AdminPage() {
       </div>
 
       {/* 탭 */}
-      <div className="flex gap-1 mb-5">
-        {([['dashboard','대시보드'],['modules','모듈 관리'],['govAlert','🔔 정부지원 알림'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`]] as const).map(([k,l])=>(
+      <div className="flex gap-1 mb-5 flex-wrap">
+        {([['dashboard','대시보드'],['modules','모듈 관리'],['govAlert','🔔 정부지원 알림'],['users','👤 회원 관리'],['requests',`문의${requests.length>0?' ('+requests.filter(r=>r.status==='pending').length+')':''}`]] as const).map(([k,l])=>(
           <button key={k} onClick={()=>setTab(k)} className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all" style={tab===k?{background:'var(--accent-bg)',color:'var(--accent)'}:{color:'var(--text-muted)'}}>{l}</button>
         ))}
       </div>
@@ -413,6 +413,9 @@ export default function AdminPage() {
         {govAlertSubTab==='scans'&&<ScansTab />}
       </>}
 
+      {/* ===== 회원 관리 탭 ===== */}
+      {tab==='users'&&<UsersTab getAuthHeader={getAuthHeader} showToast={showToast} />}
+
       {/* ===== 모듈 문의 탭 ===== */}
       {tab==='requests'&&<>
         {requests.length===0?<p className="text-center py-10 text-[13px]" style={{color:'var(--text-muted)'}}>문의가 없습니다</p>:
@@ -610,6 +613,130 @@ function ScansTab() {
               </div>
             )
           })}
+        </div>
+      )}
+    </>
+  )
+}
+
+// 회원 관리 탭
+function UsersTab({ getAuthHeader, showToast }: { getAuthHeader: () => Promise<Record<string,string>>; showToast: (msg: string) => void }) {
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const fetchUsers = async () => {
+    const h = await getAuthHeader()
+    const res = await fetch('/api/admin/users', { headers: h })
+    if (res.ok) {
+      const data = await res.json()
+      setUsers(data.users || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchUsers() }, [])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const h = await getAuthHeader()
+    const res = await fetch('/api/admin/users', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', ...h },
+      body: JSON.stringify({ userId: deleteTarget }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      showToast('회원이 삭제되었습니다')
+      setDeleteTarget(null)
+      fetchUsers()
+    } else {
+      showToast('삭제 실패: ' + data.error)
+    }
+    setDeleting(false)
+  }
+
+  const filtered = users.filter(u =>
+    !search || u.email?.includes(search) || u.business_name?.includes(search) || u.representative?.includes(search)
+  )
+
+  if (loading) return <div className="py-10 text-center text-[13px]" style={{ color: 'var(--text-muted)' }}>로딩 중...</div>
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <p className="text-[13px] font-semibold">전체 회원 <span style={{ color: 'var(--accent)' }}>{users.length}명</span></p>
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="이메일 또는 이름 검색"
+          className="inp"
+          style={{ width: 220 }}
+        />
+      </div>
+      <div className="rounded-xl overflow-hidden border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse min-w-[700px]">
+            <thead>
+              <tr className="border-b" style={{ borderColor: 'var(--border)' }}>
+                {['가입일', '이메일', '이름/상호', '역할', '크레딧', '마지막 로그인', '액션'].map(h => (
+                  <th key={h} className="px-4 py-3 text-[10.5px] font-semibold text-left uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(u => (
+                <tr key={u.id} className="border-b hover:opacity-80" style={{ borderColor: 'var(--border)' }}>
+                  <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    {u.created_at ? new Date(u.created_at).toLocaleDateString('ko') : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-[12px]">{u.email || '-'}</td>
+                  <td className="px-4 py-3 text-[12px]">{u.business_name || u.representative || '-'}</td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold" style={u.role === 'admin' ? { background: 'var(--accent-bg)', color: 'var(--accent)' } : { background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                      {u.role === 'admin' ? '어드민' : '일반'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-[12px]">{u.credits ?? 0}</td>
+                  <td className="px-4 py-3 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('ko') : '-'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.role !== 'admin' && (
+                      <button
+                        onClick={() => setDeleteTarget(u.id)}
+                        className="px-2.5 py-1 border rounded-md text-[11px] font-medium hover:opacity-80"
+                        style={{ borderColor: 'var(--error-border)', color: 'var(--error-text)' }}
+                      >
+                        탈퇴
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setDeleteTarget(null)}>
+          <div className="rounded-xl p-6 border max-w-[380px] w-full mx-4" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <h3 className="text-[16px] font-bold mb-2">회원 탈퇴 처리</h3>
+            <p className="text-[13px] mb-1" style={{ color: 'var(--text-secondary)' }}>
+              <span className="font-semibold" style={{ color: 'var(--text)' }}>{users.find(u => u.id === deleteTarget)?.email}</span> 회원을 탈퇴 처리하시겠습니까?
+            </p>
+            <p className="text-[12px] mb-5" style={{ color: 'var(--error-text)', opacity: 0.7 }}>계정 및 모든 데이터가 영구 삭제됩니다.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border rounded-lg text-[13px] hover:opacity-80" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>취소</button>
+              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-lg text-[13px] font-semibold disabled:opacity-50" style={{ background: 'var(--error-text)', color: 'white' }}>
+                {deleting ? '처리 중...' : '탈퇴 처리'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
