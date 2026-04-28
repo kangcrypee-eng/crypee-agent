@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   verification: {
     google: '',
     other: {
-      'naver-site-verification': '', // 네이버 서치어드바이저 인증 코드 (등록 후 입력)
+      'naver-site-verification': 'd7d375704bfbae7791cc6f42227bd274c97e894c',
     },
   },
 }
