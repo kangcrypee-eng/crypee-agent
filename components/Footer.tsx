@@ -21,10 +21,13 @@ export default function Footer() {
             </div>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{color:'var(--text-muted)'}}>법적 고지</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider mb-3" style={{color:'var(--text-muted)'}}>고객지원</p>
             <div className="flex flex-col gap-2">
+              <Link href="/notices" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>공지사항</Link>
               <Link href="/terms" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>서비스 이용약관</Link>
               <Link href="/privacy" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>개인정보처리방침</Link>
+              <Link href="/refund" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>환불·취소 정책</Link>
+              <Link href="/cookie" className="text-[12.5px] hover:opacity-80" style={{color:'var(--text-secondary)'}}>쿠키 정책</Link>
             </div>
           </div>
         </div>
