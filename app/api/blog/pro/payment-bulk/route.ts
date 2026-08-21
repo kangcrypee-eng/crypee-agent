@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
   const returnUrl = searchParams.get('returnUrl') || '/blog/pro'
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
 
+  return NextResponse.redirect(`${appUrl}${returnUrl}&payFail=true`)
+
   if (!paymentKey || !orderId || !amount) {
     return NextResponse.redirect(`${appUrl}${returnUrl}&payFail=true`)
   }

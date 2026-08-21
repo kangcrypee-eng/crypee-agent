@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
   const inputDataStr = searchParams.get('inputData')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
 
+  return NextResponse.redirect(`${appUrl}/credits/fail?message=${encodeURIComponent('서비스가 종료되어 신규 결제를 받지 않습니다')}`)
+
   if (!paymentKey || !orderId || !amount || !moduleId || !userId) {
     return NextResponse.redirect(`${appUrl}/credits/fail?message=${encodeURIComponent('결제 정보가 올바르지 않습니다')}`)
   }

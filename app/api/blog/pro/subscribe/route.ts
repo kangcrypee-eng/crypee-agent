@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
   const subscriptionId = searchParams.get('subscriptionId')
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.crypee.biz'
 
+  return NextResponse.redirect(`${appUrl}/blog/pro?error=${encodeURIComponent('서비스가 종료되어 신규 결제를 받지 않습니다')}`)
+
   if (!authKey || !customerKey || !subscriptionId) {
     return NextResponse.redirect(`${appUrl}/blog/pro?error=missing_params`)
   }

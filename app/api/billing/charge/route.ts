@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 export const maxDuration = 60
 
 export async function GET() {
+  return NextResponse.json({ message: 'Service terminated. Auto-billing disabled.', charged: 0 })
+
   const secretKey = process.env.TOSS_BILLING_SK || process.env.TOSS_SECRET_KEY
   if (!secretKey || secretKey === 'test_sk_xxx') {
     return NextResponse.json({ error: 'TOSS_BILLING_SK not configured' }, { status: 500 })
